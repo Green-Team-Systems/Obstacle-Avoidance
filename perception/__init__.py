@@ -8,7 +8,7 @@
 # Description: Drone class to hold all details of the individual drone.
 # ===============================================================
 
-class ObstacleAvoidanace():
+class Perception():
 
     def __init__(self):
         pass
