@@ -13,11 +13,12 @@ import numpy
 # Create different responses based on LiDar data returned: yaw for trees, vertical for walls, sloped for hills/ terrain
 # Clean up everything in the loop
 
-class LidarTest:
+class Lidar():
 
     def __init__(self):
 
         # connect to the AirSim simulator
+        # TODO Remove these functions and setup drone
         self.client = airsim.MultirotorClient()
         self.client.confirmConnection()
         self.client.enableApiControl(True)
@@ -36,6 +37,8 @@ class LidarTest:
         zCord = -2
         droneVelocity = 8
         count = 0
+
+        
         obstacleDetected = False
         print("arming the drone...")
         self.client.armDisarm(True)
@@ -144,10 +147,10 @@ if __name__ == "__main__":
     arg_parser.add_argument('-save-to-disk', type=bool, help="save Lidar data to disk", default=False)
 
     args = arg_parser.parse_args(args)
-    lidarTest = LidarTest()
+    lidar = Lidar()
     try:
-        lidarTest.execute()
+        lidar.execute()
     except Exception as error:
         print(error)
     finally:
-        lidarTest.stop()
+        lidar.stop()

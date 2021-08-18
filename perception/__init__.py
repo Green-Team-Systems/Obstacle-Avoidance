@@ -7,10 +7,12 @@
 # 
 # Description: Class to hold all the details of obstacle avoidance.
 # ===============================================================
+from lidar import Lidar
 
 class Perception():
 
     def __init__(self):
+        self.lidar = Lidar()
         pass
 
     def lidarAvoid(self):
