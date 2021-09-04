@@ -1,4 +1,3 @@
-
 import setup_path 
 import airsim
 
@@ -10,8 +9,10 @@ import pprint
 import numpy
 
 # TODO: 
-# Create different responses based on LiDar data returned: yaw for trees, vertical for walls, sloped for hills/ terrain
+# Create different responses based on LiDar data returned: yaw for trees,
+# vertical for walls, sloped for hills/ terrain
 # Clean up everything in the loop
+
 
 class LidarTest:
 
@@ -23,20 +24,22 @@ class LidarTest:
         self.client.enableApiControl(True)
 
     def execute(self):
-
-        # # Allows for user input of location and velocity variables from terminal for quicker testing
+        """
+        This is where your function description.
+        """
+        # Allows for user input of location and velocity variables from terminal for quicker testing
         # xCord = input("Enter the X-Coordinate of destination:")
         # yCord = input("Enter the Y-Coordinate of destination:")
         # zCord = input("Enter the Z-Coordinate of destination:")
         # droneVelocity = input("Enter the speed at which to travel to the destination:")
 
         # Initialization of variables and drone
-        xCord = -400
-        yCord = 0
-        zCord = 0
-        droneVelocity = 2
+        xCord = 400 # meters
+        yCord = 0 # meters
+        zCord = 0 # meters
+        droneVelocity = 2 # meters / second
         count = 0
-        rotation = 0
+        rotation = 0.0 # TODO Fifgure this out
         collisionImminent = 3
         xCordNew = (xCord * math.cos(rotation) + yCord * math.sin(rotation)) / (xCord + yCord)
         yCordNew = (-xCord * math.sin(rotation) + yCord * math.cos(rotation)) / (xCord + yCord)
@@ -47,6 +50,7 @@ class LidarTest:
         # Takeoff of Drone
         state = self.client.getMultirotorState()
         s = pprint.pformat(state)
+        print(s)
         airsim.wait_key('Press any key to takeoff')
         self.client.takeoffAsync().join()
         state = self.client.getMultirotorState()    
@@ -72,7 +76,7 @@ class LidarTest:
 
                 # Intended to Unrotate after a rotation was completed to avoid collision.
                 # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
-                if(rotation != 0):
+                if(rotation != 0.0):
                     self.client.rotateToYawAsync(180,10,1).join()
             else:
                 # Divides the lidarData into 3 seperate variables for x, y and z
@@ -130,21 +134,26 @@ class LidarTest:
                     # # This will need to be adjusted to be relative.
                     # # .join() is used to make sure the command is completed before continuing. 
                     #self.client.rotateByYawRateAsync(5, 1, 1)
-                    self.client.rotateToYawAsync(-90,10,1).join()
-                    rotation = rotation - 1
-                    print('\n\n\n\n Rotating')
+                    # self.client.rotateToYawAsync(-90,10,1).join()
+                    # rotation = rotation - 1
+                    # print('\n\n\n\n Rotating')
 
                     # # These block is to activate the collision avoidance based on slope calculation.
                     # # .join() is not used to keep functions from stepping on each other.
-                    #self.client.moveToPositionAsync(lidarData.pose.position.x_val - terrain,lidarData.pose.position.y_val,lidarData.pose.position.z_val - terrainSquared,droneVelocity)
+                    self.client.moveToPositionAsync(
+                        lidarData.pose.position.x_val - terrain,
+                        lidarData.pose.position.y_val,
+                        (lidarData.pose.position.z_val
+                        - terrainSquared,droneVelocity)
+                    )
                     #time.sleep(1)
                     #print(lidarData.pose.position.x_val)
 
                     # Calculations to nudge the drone in the correct direction after yawing to avoid a collision.
-                    yaw = rotation
-                    vx = math.cos(yaw) * droneVelocity
-                    vy = math.sin(yaw) * droneVelocity
-                    self.client.moveByVelocityZAsync(vx, vy, 0, 1, 1)
+                    # yaw = rotation
+                    # vx = math.cos(yaw) * droneVelocity
+                    # vy = math.sin(yaw) * droneVelocity
+                    # self.client.moveByVelocityZAsync(vx, vy, 0, 1, 1)
 
 
 
