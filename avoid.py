@@ -76,7 +76,7 @@ class LidarTest:
             print(f'Z-Distance sensor data: {ballsData.distance}')
             print(f'X-Distance sensor data: {cockData.distance}')
 
-            slope = ballsData.distance / cockData.distance
+            #slope = ballsData.distance / cockData.distance
             hypo = math.sqrt(math.pow(ballsData.distance, 2) + math.pow(cockData.distance, 2))
             zVelocity = ballsData.distance / hypo 
             xVelocity = cockData.distance / hypo 
