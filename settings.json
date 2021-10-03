@@ -23,29 +23,17 @@
           "Roll": 0,
           "Pitch": 0,
           "Yaw": 0,
-          "VerticalFOVUpper": -15,
+		  "VerticalFOVUpper": 5,
           "VerticalFOVLower": -25,
-          "HorizontalFOVStart": -20,
-          "HorizontalFOVEnd": 20,
-          "DrawDebugPoints": false,
-          "DataFrame": "SensorLocalFrame"
-        },
-        "Balls": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": -90, "Roll": 0,
-          "DrawDebugPoints": true
-        },   
-        "Cock": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": 0, "Roll": 0,
-          "DrawDebugPoints": true
-        }   
+          "HorizontalFOVStart": -30,
+          "HorizontalFOVEnd": 30,
+          "DrawDebugPoints": true,
+          "DataFrame": "VehicleInertialFrame"
+        }
       },
-      "X": 400,
+      "X": 0,
       "Y": 0,
-      "Z": -200,
+      "Z": 0,
       "Pitch": 0,
       "Roll": 0,
       "Yaw": 0

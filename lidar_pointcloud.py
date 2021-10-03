@@ -57,22 +57,22 @@ class LidarTest:
                         f = open(filename,'a')
                     lidar_data = self.client.getLidarData(lidar_name=lidar_name,vehicle_name=vehicle_name)
                     print(lidar_data)
-                    orientation = lidar_data.pose.orientation
-                    q0, q1, q2, q3 = orientation.w_val, orientation.x_val, orientation.y_val, orientation.z_val
-                    rotation_matrix = np.array(([1-2*(q2*q2+q3*q3),2*(q1*q2-q3*q0),2*(q1*q3+q2*q0)],
-                                                  [2*(q1*q2+q3*q0),1-2*(q1*q1+q3*q3),2*(q2*q3-q1*q0)],
-                                                  [2*(q1*q3-q2*q0),2*(q2*q3+q1*q0),1-2*(q1*q1+q2*q2)]))
+                    # orientation = lidar_data.pose.orientation
+                    # q0, q1, q2, q3 = orientation.w_val, orientation.x_val, orientation.y_val, orientation.z_val
+                    # rotation_matrix = np.array(([1-2*(q2*q2+q3*q3),2*(q1*q2-q3*q0),2*(q1*q3+q2*q0)],
+                    #                               [2*(q1*q2+q3*q0),1-2*(q1*q1+q3*q3),2*(q2*q3-q1*q0)],
+                    #                               [2*(q1*q3-q2*q0),2*(q2*q3+q1*q0),1-2*(q1*q1+q2*q2)]))
 
                     position = lidar_data.pose.position
                     for i in range(0, len(lidar_data.point_cloud), 3):
                         xyz = lidar_data.point_cloud[i:i+3]
+    
+                        # corrected_x, corrected_y, corrected_z = np.matmul(rotation_matrix, np.asarray(xyz))
+                        # final_x = corrected_x + position.x_val
+                        # final_y = corrected_y + position.y_val
+                        # final_z = corrected_z + position.z_val
 
-                        corrected_x, corrected_y, corrected_z = np.matmul(rotation_matrix, np.asarray(xyz))
-                        final_x = corrected_x + position.x_val
-                        final_y = corrected_y + position.y_val
-                        final_z = corrected_z + position.z_val
-
-                        f.write("%f %f %f %d %d %d \n" % (final_x,final_y,final_z,255,255,0))
+                        f.write("%f %f %f %d %d %d \n" % (xyz[0],xyz[1],-xyz[2],255,255,0))
                     f.close()
                 existing_data_cleared = True
         except KeyboardInterrupt:
