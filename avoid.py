@@ -24,6 +24,59 @@ class LidarTest:
         self.client.confirmConnection()
         self.client.enableApiControl(True)
 
+    def slopeCalculation(self, lidarData, droneVelocity):
+    # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
+        if (len(lidarData) < 3):
+                print("\tNo points received from Lidar data")
+                xVelocity = droneVelocity 
+                zVelocity = 0
+            # Intended to Unrotate after a rotation was completed to avoid collision.
+            # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
+        else:
+                # Divides the lidarData into 3 seperate variables for x, y and z
+                y_points_last = 0
+                length = len(lidarData)
+                overall_point_list = list()
+                next_row = list()
+                for i in range(0, length, 3):
+                    xyz = lidarData[i:i+3]
+                    if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
+                        overall_point_list.append(next_row)
+                        next_row = list()
+                    next_row.append(xyz)
+                    #f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
+                    y_points_last = xyz[1]
+                try: 
+                    
+                    midpoint_top_level = int(len(overall_point_list[1]) / 2)
+                    x2_distance = overall_point_list[1][midpoint_top_level][0]
+                    z2_distance = -overall_point_list[1][midpoint_top_level][2]
+
+                    bottom_level_point = len(overall_point_list) - 1
+                    midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
+                    x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
+                    z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
+
+                    x_distance = math.fabs(x2_distance - x1_distance)
+                    z_distance = math.fabs(z2_distance - z1_distance)
+
+                    hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
+                    zVelocity = (z_distance / hypo)
+                    xVelocity = (x_distance / hypo)
+                    zVelocity = zVelocity * droneVelocity
+                    xVelocity = xVelocity * droneVelocity
+
+                    print(f'Z speed: {zVelocity}')
+                    print(f'X speed: {xVelocity}')
+                    print(f'X distance: {x_distance}')
+                    print(f'Z distance: {z_distance}')
+
+                except Exception:
+                    xVelocity = droneVelocity 
+                    zVelocity = 0
+        return xVelocity, zVelocity
+
+
     def execute(self):
         """
         This is where your function description.
@@ -39,16 +92,7 @@ class LidarTest:
         yCord = 0 # meters
         zCord = 0 # meters
         droneVelocity = 10 # meters / second
-        x_points = []
-        y_points = []
-        z_points = []
-        d = {}
-        count = 0
         rotation = 0.0 # TODO Fifgure this out
-        collisionImminent = 3
-        xCordNew = (xCord * math.cos(rotation) + yCord * math.sin(rotation)) / (xCord + yCord)
-        yCordNew = (-xCord * math.sin(rotation) + yCord * math.cos(rotation)) / (xCord + yCord)
-        obstacleDetected = False
         print("arming the drone...")
         self.client.armDisarm(True)
 
@@ -72,103 +116,15 @@ class LidarTest:
 
         #time.sleep(10)
         
-        f = open('airsimdata.txt', 'w')
-        
-        # if (len(lidar_data.point_cloud) < 3):
-        #             print("\tNo points received from Lidar data")
-        #         # Intended to Unrotate after a rotation was completed to avoid collision.
-        #         # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
-        # else:
-        #         # Divides the lidarData into 3 seperate variables for x, y and z
-        #         y_points_last = 0
-        #         length = len(lidar_data.point_cloud)
-        #         counter = 1
-        #         overall_point_list = list()
-        #         next_row = list()
-        #         for i in range(0, len(lidar_data.point_cloud), 3):
-        #             xyz = lidar_data.point_cloud[i:i+3]
-        #             if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
-        #                 overall_point_list.append(next_row)
-        #                 next_row = list()
-        #             next_row.append(xyz)
-        #             f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
-        #             y_points_last = xyz[1]
-        
-        # midpoint_top_level = int(len(overall_point_list[1]) / 2)
-        # x2_distance = overall_point_list[1][midpoint_top_level][0]
-        # z2_distance = -overall_point_list[1][midpoint_top_level][2]
+        # f = open('airsimdata.txt', 'w')
 
-        # bottom_level_point = len(overall_point_list) - 1
-        # midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
-        # x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
-        # z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
-
-        # x_distance = x2_distance - x1_distance
-        # z_distance = z2_distance - z1_distance
-
-        # LidarHypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2))
-        # distanceHypo = math.sqrt(math.pow(ballsData.distance, 2) + math.pow(cockData.distance, 2))
-
-        # print(f'Lidar hypo {LidarHypo}')
-        # print(f'Distance hypo {distanceHypo}')
-
-
-        # Loop for Lidar testing
-        # The variable value of 400 was used to ensure a long enough time to thoroughly test
         while 1:
 
             # see getLidarData below.
             lidar_data = self.client.getLidarData()
-            
-            # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
-            if (len(lidar_data.point_cloud) < 3):
-                    print("\tNo points received from Lidar data")
-                    xVelocity = droneVelocity 
-                    zVelocity = 0
-                # Intended to Unrotate after a rotation was completed to avoid collision.
-                # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
-            else:
-                    # Divides the lidarData into 3 seperate variables for x, y and z
-                    y_points_last = 0
-                    length = len(lidar_data.point_cloud)
-                    overall_point_list = list()
-                    next_row = list()
-                    for i in range(0, length, 3):
-                        xyz = lidar_data.point_cloud[i:i+3]
-                        if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
-                            overall_point_list.append(next_row)
-                            next_row = list()
-                        next_row.append(xyz)
-                        #f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
-                        y_points_last = xyz[1]
-                    try: 
-                        
-                        midpoint_top_level = int(len(overall_point_list[1]) / 2)
-                        x2_distance = overall_point_list[1][midpoint_top_level][0]
-                        z2_distance = -overall_point_list[1][midpoint_top_level][2]
+            data = lidar_data.point_cloud
 
-                        bottom_level_point = len(overall_point_list) - 1
-                        midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
-                        x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
-                        z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
-
-                        x_distance = math.fabs(x2_distance - x1_distance)
-                        z_distance = math.fabs(z2_distance - z1_distance)
-
-                        hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
-                        zVelocity = (z_distance / hypo)
-                        xVelocity = (x_distance / hypo)
-                        zVelocity = zVelocity * droneVelocity
-                        xVelocity = xVelocity * droneVelocity
-
-                        print(f'Z speed: {zVelocity}')
-                        print(f'X speed: {xVelocity}')
-                        print(f'X distance: {x_distance}')
-                        print(f'Z distance: {z_distance}')
-
-                    except Exception:
-                        xVelocity = droneVelocity 
-                        zVelocity = 0   
+            xVelocity, zVelocity = self.slopeCalculation(data, 10)
             
             self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 0.01)
             time.sleep(0.01)
