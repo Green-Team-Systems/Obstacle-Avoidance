@@ -66,11 +66,11 @@ class LidarTest:
         # Move the drone to the coordinates initialized above
         # MovetoPosition will use Airsim Path Planning while moveByVelocity will not, i.e. moveByVelocity will be less jumpy.
         # self.client.moveByVelocityAsync(xCord, yCord, zCord, droneVelocity)
-        self.client.moveToPositionAsync(0, 5, 0, 5).join()
+        #self.client.moveToPositionAsync(0, 5, 0, 5).join()
 
         self.client.hoverAsync().join()
 
-        time.sleep(20)
+        #time.sleep(10)
         
         f = open('airsimdata.txt', 'w')
         
@@ -115,15 +115,16 @@ class LidarTest:
 
         # Loop for Lidar testing
         # The variable value of 400 was used to ensure a long enough time to thoroughly test
-        while 1 == 1:
+        while 1:
 
             # see getLidarData below.
             lidar_data = self.client.getLidarData()
             
             # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
-            # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
             if (len(lidar_data.point_cloud) < 3):
                     print("\tNo points received from Lidar data")
+                    xVelocity = droneVelocity 
+                    zVelocity = 0
                 # Intended to Unrotate after a rotation was completed to avoid collision.
                 # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
             else:
@@ -132,37 +133,42 @@ class LidarTest:
                     length = len(lidar_data.point_cloud)
                     overall_point_list = list()
                     next_row = list()
-                    for i in range(0, len(lidar_data.point_cloud), 3):
+                    for i in range(0, length, 3):
                         xyz = lidar_data.point_cloud[i:i+3]
                         if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
                             overall_point_list.append(next_row)
                             next_row = list()
                         next_row.append(xyz)
-                        f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
+                        #f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
                         y_points_last = xyz[1]
-            
-            midpoint_top_level = int(len(overall_point_list[1]) / 2)
-            x2_distance = overall_point_list[1][midpoint_top_level][0]
-            z2_distance = -overall_point_list[1][midpoint_top_level][2]
+                    try: 
+                        
+                        midpoint_top_level = int(len(overall_point_list[1]) / 2)
+                        x2_distance = overall_point_list[1][midpoint_top_level][0]
+                        z2_distance = -overall_point_list[1][midpoint_top_level][2]
 
-            bottom_level_point = len(overall_point_list) - 1
-            midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
-            x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
-            z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
+                        bottom_level_point = len(overall_point_list) - 1
+                        midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
+                        x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
+                        z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
 
-            x_distance = x2_distance - x1_distance
-            z_distance = z2_distance - z1_distance
+                        x_distance = math.fabs(x2_distance - x1_distance)
+                        z_distance = math.fabs(z2_distance - z1_distance)
 
-            hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
-            zVelocity = (z_distance / hypo)
-            xVelocity = (x_distance / hypo)
-            zVelocity = zVelocity * droneVelocity
-            xVelocity = xVelocity * droneVelocity
-        
+                        hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
+                        zVelocity = (z_distance / hypo)
+                        xVelocity = (x_distance / hypo)
+                        zVelocity = zVelocity * droneVelocity
+                        xVelocity = xVelocity * droneVelocity
 
+                        print(f'Z speed: {zVelocity}')
+                        print(f'X speed: {xVelocity}')
+                        print(f'X distance: {x_distance}')
+                        print(f'Z distance: {z_distance}')
 
-            print(f'Z speed: {zVelocity}')
-            print(f'X speed: {xVelocity}')
+                    except Exception:
+                        xVelocity = droneVelocity 
+                        zVelocity = 0   
             
             self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 0.01)
             time.sleep(0.01)
@@ -170,7 +176,7 @@ class LidarTest:
     def parse_lidarData(self, data):
 
         # reshape array of floats to array of [X,Y,Z]
-        points = numpy.array(data.point_cloud, dtype=numpy.dtype('f4'))
+        points = numpy.array(data.point_cloud, type=numpy.dtype('f4'))
         points = numpy.reshape(points, (int(points.shape[0]/3), 3))
        
         return points
