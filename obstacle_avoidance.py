@@ -88,7 +88,27 @@ class ObstacleAvoidance(Process):
         self.log = logging.getLogger(self.drone_id + __name__)
         self.log.setLevel(logging.INFO)
         self.log.addHandler(file_handler)
-    
+
+    def build_airsim_client(self):
+        """
+        Generate the AirSim multirotor client, arming the vehicle
+        and enabling API control so that the vehicle is ready to take
+        commands from the user.
+
+        ## Inputs:
+        - None
+
+        ## Outputs:
+        - Assigns the multirotor client to the class airsim_client
+        variable.
+        """
+        self.airsim_client = airsim.MultirotorClient()
+        self.airsim_client.confirmConnection()
+        self.airsim_client.armDisarm(True, self.drone_id)
+        self.airsim_client.enableApiControl(True, self.drone_id)
+        self.log.info(
+            "AirSim API connected. Vehicle is armed and API control is active")
+
     def start(self):
         Process.start(self)
     
