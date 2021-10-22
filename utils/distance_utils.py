@@ -9,7 +9,6 @@
 import math
 import numpy as np
 
-from utils.name_utils import find_name
 from utils.data_classes import PosVec3
 
 
@@ -54,30 +53,6 @@ def build_vehicle_distance_matrix_euclidean(positions):
                     (first_drone[0] - second_drone[0])**2 + 
                     (first_drone[1] - second_drone[1])**2 +
                     (first_drone[2] - second_drone[2])**2)
-            else:
-                distance_matrix[i, j] = 0
-    return distance_matrix
-
-
-def build_vehicle_distance_matrix_gps(drones: dict) -> np.array:
-    """
-    Build the vehicle distance matrix, taking the Haversine distance
-    between each set of drones.
-
-    Inputs:
-    - drones [dict] - dictionary of the drones of the swarm
-    """
-    distance_matrix = np.zeros((len(drones), len(drones)), dtype=float)
-    for i, row in enumerate(distance_matrix):
-        for j, column in enumerate(row):
-            if i != j:
-                first_drone = drones[find_name(i)].gps_pos_vec3
-                second_drone = drones[find_name(j)].gps_pos_vec3
-                distance_matrix[i, j] = round(haversine(
-                    first_drone[0],
-                    first_drone[1],
-                    second_drone[0],
-                    second_drone[1])*1000, 3)
             else:
                 distance_matrix[i, j] = 0
     return distance_matrix
