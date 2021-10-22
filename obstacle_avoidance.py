@@ -14,14 +14,15 @@ import logging
 import time
 import copy
 import traceback
+import math
 
 from multiprocessing import Process
 from datetime import datetime
 from multiprocessing.queues import Empty
 
-from utils.data_classes import PosVec3, MovementCommand
+from utils.data_classes import PosVec3, MovementCommand, VelVec3
 from utils.killer_utils import GracefulKiller
-from airsim.types import YawMode
+from airsim.types import LidarData, YawMode
 # TODO Create status library
 
 
@@ -106,6 +107,69 @@ class ObstacleAvoidance(Process):
                 pass
         try:
             while not killer.kill_now:
-                pass
+                lidar_data = self.airsim_client.getLidarData()
+                data = lidar_data.point_cloud
+                x_vel, z_vel = self.slopeCalculation(data, 5.0)
+                if x_vel == 0.0 and z_vel == 0.0:
+                    command = MovementCommand(
+                        velocity=VelVec3(
+                            vx=x_vel,
+                            vz=z_vel
+                        ),
+                        move_by="velocity"
+                    )
+                    self.path_planning_queue.put(command)
         except Exception as error:
             self.log.error(traceback.print_exc())
+
+    def slopeCalculation(self, lidarData, droneVelocity):
+    # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
+        if (len(lidarData) < 3):
+                print("\tNo points received from Lidar data")
+                xVelocity = 0.0 
+                zVelocity = 0.0
+            # Intended to Unrotate after a rotation was completed to avoid collision.
+            # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
+        else:
+                # Divides the lidarData into 3 seperate variables for x, y and z
+                y_points_last = 0
+                length = len(lidarData)
+                overall_point_list = list()
+                next_row = list()
+                for i in range(0, length, 3):
+                    xyz = lidarData[i:i+3]
+                    if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
+                        overall_point_list.append(next_row)
+                        next_row = list()
+                    next_row.append(xyz)
+                    #f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
+                    y_points_last = xyz[1]
+                try: 
+                    
+                    midpoint_top_level = int(len(overall_point_list[1]) / 2)
+                    x2_distance = overall_point_list[1][midpoint_top_level][0]
+                    z2_distance = -overall_point_list[1][midpoint_top_level][2]
+
+                    bottom_level_point = len(overall_point_list) - 1
+                    midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
+                    x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
+                    z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
+
+                    x_distance = math.fabs(x2_distance - x1_distance)
+                    z_distance = math.fabs(z2_distance - z1_distance)
+
+                    hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
+                    zVelocity = (z_distance / hypo)
+                    xVelocity = (x_distance / hypo)
+                    zVelocity = zVelocity * droneVelocity
+                    xVelocity = xVelocity * droneVelocity
+
+                    print(f'Z speed: {zVelocity}')
+                    print(f'X speed: {xVelocity}')
+                    print(f'X distance: {x_distance}')
+                    print(f'Z distance: {z_distance}')
+
+                except Exception:
+                    xVelocity = 0.0 
+                    zVelocity = 0.0
+        return xVelocity, zVelocity

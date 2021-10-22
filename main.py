@@ -72,7 +72,9 @@ if __name__ == "__main__":
             )
             if dist_to_target < dist_threshold:
                 arrived = True
-            time.sleep(0.1)
+            else:
+                path_planning_queue.put(command)
+            time.sleep(2)
 
     print("Trajectory completed!")
     oa_module.terminate()
