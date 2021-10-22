@@ -90,7 +90,7 @@ class ObstacleAvoidance(Process):
         self.log.addHandler(file_handler)
     
     def start(self):
-        Process.start()
+        Process.start(self)
     
     def run(self):
         Process.run(self)
