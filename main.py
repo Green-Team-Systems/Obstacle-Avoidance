@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # The drone starts in the 0,0,0 coordinate position
     current_position = PosVec3()
 
-    for point in trajectory["trajectory"]:
+    for point in trajectory["Trajectory"]:
         # Generate the next movement command to the system, giving
         # this a priority of 2 (user priority, high-level goal)
         command = MovementCommand(
