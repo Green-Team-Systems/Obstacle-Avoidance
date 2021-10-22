@@ -136,3 +136,4 @@ class MovementCommand():
     heading: float = 0.0 # degrees
     speed: float = 5.0 # meters / second
     priority: int = 1
+    move_by: str = "position"

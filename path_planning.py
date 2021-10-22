@@ -341,14 +341,24 @@ class PathPlanning(Process):
         successful.
         """
         # TODO Add drivetrain once that is fixed
-        move_future = self.airsim_client.moveToPositionAsync(
-            command.position.X,
-            command.position.Y,
-            command.position.Z,
-            command.speed,
-            yaw_mode=YawMode(False,command.heading),
-            vehicle_name=self.drone_id
-        )
-        time.sleep(0.01)
+        if command.move_by == "position":
+            move_future = self.airsim_client.moveToPositionAsync(
+                command.position.X,
+                command.position.Y,
+                command.position.Z,
+                command.speed,
+                yaw_mode=YawMode(False,command.heading),
+                vehicle_name=self.drone_id
+            )
+            time.sleep(0.01)
+        elif command.move_by == "velocity":
+            move_future = self.airsim_client.moveByVelocityAsync(
+                command.velocity.vx,
+                command.velocity.vy,
+                command.velocity.vz,
+                0.01,
+                yaw_mode=YawMode(False,command.heading),
+                vehicle_name=self.drone_id
+            )
         # move_future.join()
         return True
