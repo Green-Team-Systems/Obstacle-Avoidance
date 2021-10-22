@@ -130,6 +130,7 @@ class ObstacleAvoidance(Process):
                 lidar_data = self.airsim_client.getLidarData()
                 data = lidar_data.point_cloud
                 x_vel, z_vel = self.slopeCalculation(data, 5.0)
+                print(x_vel)
                 if not x_vel == 0.0 and not z_vel == 0.0:
                     command = MovementCommand(
                         velocity=VelVec3(
