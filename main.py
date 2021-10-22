@@ -11,6 +11,7 @@ import json
 import setup_path
 import airsim
 import time
+import numpy as np
 
 from multiprocessing import Queue
 
@@ -52,13 +53,14 @@ if __name__ == "__main__":
     for point in trajectory["Trajectory"]:
         # Generate the next movement command to the system, giving
         # this a priority of 2 (user priority, high-level goal)
+        heading = np.arctan(point["X"]/point["Y"])
         command = MovementCommand(
             position=PosVec3(
                 X=point["X"],
                 Y=point["Y"],
                 Z=point["Z"],
             ),
-            heading=point["heading"],
+            heading=heading,
             priority=2
         )
         path_planning_queue.put(command)
