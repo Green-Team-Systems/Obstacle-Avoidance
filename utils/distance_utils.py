@@ -61,5 +61,4 @@ def build_vehicle_distance_matrix_euclidean(positions):
 def ned_position_difference(first_pos: PosVec3,
                             second_pos: PosVec3) -> float:
     return math.sqrt(pow((first_pos.X - second_pos.X), 2)
-                     + pow((first_pos.Y - second_pos.Y), 2)
-                     + pow((first_pos.Z - second_pos.Z), 2))
+                     + pow((first_pos.Y - second_pos.Y), 2))

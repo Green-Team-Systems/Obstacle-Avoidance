@@ -50,38 +50,41 @@ if __name__ == "__main__":
 
     # The drone starts in the 0,0,0 coordinate position
     current_position = PosVec3()
-
-    for point in trajectory["Trajectory"]:
-        # Generate the next movement command to the system, giving
-        # this a priority of 2 (user priority, high-level goal)
-        heading = np.arctan2(point["Y"],point["X"])
-        heading = m.degrees(heading)
-        command = MovementCommand(
-            position=PosVec3(
-                X=point["X"],
-                Y=point["Y"],
-                Z=point["Z"],
-            ),
-            heading=heading,
-            priority=2
-        )
-        path_planning_queue.put(command)
-        arrived = False
-        while not arrived:
-            state = airsim_client.getMultirotorState(vehicle_name=drone_id)
-            position = position_to_list(state.kinematics_estimated.position)
-            dist_to_target = ned_position_difference(
-                command.position,
-                position
+    try:
+        for point in trajectory["Trajectory"]:
+            # Generate the next movement command to the system, giving
+            # this a priority of 2 (user priority, high-level goal)
+            heading = np.arctan2(point["Y"],point["X"])
+            heading = m.degrees(heading)
+            command = MovementCommand(
+                position=PosVec3(
+                    X=point["X"],
+                    Y=point["Y"],
+                    Z=point["Z"],
+                ),
+                heading=heading,
+                priority=2
             )
-            if dist_to_target < dist_threshold:
-                arrived = True
-            else:
-                path_planning_queue.put(command)
-            time.sleep(2)
+            path_planning_queue.put(command)
+            arrived = False
+            while not arrived:
+                state = airsim_client.getMultirotorState(vehicle_name=drone_id)
+                position = position_to_list(state.kinematics_estimated.position)
+                dist_to_target = ned_position_difference(
+                    command.position,
+                    position
+                )
+                if dist_to_target < dist_threshold:
+                    arrived = True
+                else:
+                    path_planning_queue.put(command)
+                time.sleep(0.5)
+    except Exception:
+        pass
+    finally:
+        print("Trajectory completed!")
+        airsim_client.reset()
+        oa_module.terminate()
+        path_plan_module.terminate()
 
-    print("Trajectory completed!")
-    oa_module.terminate()
-    path_plan_module.terminate()
-
-    print("Test complete. Check the logs!")
+        print("Test complete. Check the logs!")

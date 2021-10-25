@@ -43,9 +43,9 @@
           "DrawDebugPoints": true
         }   
       },
-      "X": 400,
+      "X": 0,
       "Y": 0,
-      "Z": -200,
+      "Z": -1,
       "Pitch": 0,
       "Roll": 0,
       "Yaw": 0

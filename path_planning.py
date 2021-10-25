@@ -292,7 +292,8 @@ class PathPlanning(Process):
                                 command
                                 )
                             )
-                        self.last_command = copy.deepcopy(command)
+                        if command.move_by == "position":
+                            self.last_command = copy.deepcopy(command)
                     except Exception as error:
                         self.log.error("{}|{}|error|{}".format(
                             datetime.utcnow(),
@@ -356,8 +357,17 @@ class PathPlanning(Process):
                 command.velocity.vx,
                 command.velocity.vy,
                 command.velocity.vz,
-                0.01,
+                0.02,
                 yaw_mode=YawMode(False,command.heading),
+                vehicle_name=self.drone_id
+            )
+            # move_future.join()
+            move_future = self.airsim_client.moveToPositionAsync(
+                self.last_command.position.X,
+                self.last_command.position.Y,
+                self.last_command.position.Z,
+                self.last_command.speed - 1.0,
+                yaw_mode=YawMode(False,self.last_command.heading),
                 vehicle_name=self.drone_id
             )
         # move_future.join()
