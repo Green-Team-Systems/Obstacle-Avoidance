@@ -15,6 +15,7 @@ import time
 import copy
 import traceback
 import math
+import json
 
 from multiprocessing import Process
 from datetime import datetime
@@ -130,7 +131,14 @@ class ObstacleAvoidance(Process):
                 lidar_data = self.airsim_client.getLidarData()
                 data = lidar_data.point_cloud
                 x_vel, z_vel = self.slopeCalculation(data, 5.0)
-                if not x_vel == 0.0 and not z_vel == 0.0 and z_vel >= 1.0:
+                if not x_vel == 0.0 and not z_vel == 0.0 and z_vel >= 0.9:
+                    self.log.info(
+                            "{}|{}|vel_command|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dumps([x_vel,z_vel])
+                                )
+                            )
                     command = MovementCommand(
                         velocity=VelVec3(
                             vx=x_vel,
@@ -139,7 +147,7 @@ class ObstacleAvoidance(Process):
                         move_by="velocity"
                     )
                     self.path_planning_queue.put(command)
-                time.sleep(0.1)
+                time.sleep(0.01)
         except Exception as error:
             self.log.error(traceback.print_exc())
 
@@ -185,10 +193,10 @@ class ObstacleAvoidance(Process):
                     zVelocity = zVelocity * droneVelocity
                     xVelocity = xVelocity * droneVelocity
 
-                    print(f'Z speed: {zVelocity}')
-                    print(f'X speed: {xVelocity}')
-                    print(f'X distance: {x_distance}')
-                    print(f'Z distance: {z_distance}')
+                    # print(f'Z speed: {zVelocity}')
+                    # print(f'X speed: {xVelocity}')
+                    # print(f'X distance: {x_distance}')
+                    # print(f'Z distance: {z_distance}')
 
                 except Exception:
                     xVelocity = 0.0 

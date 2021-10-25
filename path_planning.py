@@ -361,7 +361,7 @@ class PathPlanning(Process):
                 yaw_mode=YawMode(False,command.heading),
                 vehicle_name=self.drone_id
             )
-            # move_future.join()
+            move_future.join()
             move_future = self.airsim_client.moveToPositionAsync(
                 self.last_command.position.X,
                 self.last_command.position.Y,

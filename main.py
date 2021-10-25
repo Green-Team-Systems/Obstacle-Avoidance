@@ -13,6 +13,7 @@ import airsim
 import time
 import math as m
 import numpy as np
+import logging
 
 from multiprocessing import Queue
 
@@ -24,9 +25,14 @@ from utils.position_utils import position_to_list
 
 
 if __name__ == "__main__":
+
+    FORMAT = '%(asctime)-15s %(message)s'
+    logging.basicConfig(filename='logs/root.log',
+                    level=logging.INFO,
+                    format=FORMAT)
     drone_id = "Drone1"
     path_planning_queue = Queue()
-    dist_threshold = 3.0 # meters
+    dist_threshold = 5.0 # meters
 
     airsim_client = airsim.MultirotorClient()
     airsim_client.confirmConnection()
