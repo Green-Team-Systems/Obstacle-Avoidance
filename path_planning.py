@@ -12,6 +12,7 @@ import airsim
 import logging
 import time
 import copy
+import numpy as np
 
 from multiprocessing import Process
 from datetime import datetime
@@ -353,12 +354,14 @@ class PathPlanning(Process):
             )
             time.sleep(0.01)
         elif command.move_by == "velocity":
+            vx = command.velocity.vx * np.cos(np.radians(self.last_command.heading))
+            vy = command.velocity.vx * np.sin(np.radians(self.last_command.heading))
             move_future = self.airsim_client.moveByVelocityAsync(
-                command.velocity.vx,
-                command.velocity.vy,
+                vx,
+                vy,
                 command.velocity.vz,
                 0.02,
-                yaw_mode=YawMode(False,command.heading),
+                yaw_mode=YawMode(False,self.last_command.heading),
                 vehicle_name=self.drone_id
             )
             move_future.join()

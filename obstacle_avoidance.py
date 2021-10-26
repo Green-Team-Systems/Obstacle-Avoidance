@@ -154,7 +154,7 @@ class ObstacleAvoidance(Process):
     def slopeCalculation(self, lidarData, droneVelocity):
     # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
         if (len(lidarData) < 3):
-                print("\tNo points received from Lidar data")
+                # print("\tNo points received from Lidar data")
                 xVelocity = 0.0 
                 zVelocity = 0.0
             # Intended to Unrotate after a rotation was completed to avoid collision.
