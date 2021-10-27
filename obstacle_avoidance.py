@@ -120,7 +120,7 @@ class ObstacleAvoidance(Process):
             self.build_airsim_client()
         while not self.takeoff_completed:
             try:
-                message = self.path_planning_queue.get(block=True, timeout=0.0)
+                message = self.path_planning_queue.get(block=False)
                 if message == "Takeoff Completed":
                     self.takeoff_completed = True
                 # TODO Handle takeoff failures

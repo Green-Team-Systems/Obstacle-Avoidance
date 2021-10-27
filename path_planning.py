@@ -225,7 +225,7 @@ class PathPlanning(Process):
             for _ in range(num_messages):
                 try:
                     messages.append(self.command_queue.get(
-                        block=True, timeout=0.0))
+                        block=False))
                 except Empty:
                     continue
 
@@ -364,7 +364,7 @@ class PathPlanning(Process):
                 yaw_mode=YawMode(False,self.last_command.heading),
                 vehicle_name=self.drone_id
             )
-            move_future.join()
+            # move_future.join()
             move_future = self.airsim_client.moveToPositionAsync(
                 self.last_command.position.X,
                 self.last_command.position.Y,

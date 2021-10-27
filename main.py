@@ -82,6 +82,7 @@ if __name__ == "__main__":
                     position
                 )
                 if dist_to_target < dist_threshold:
+                    print(dist_to_target)
                     arrived = True
                 else:
                     path_planning_queue.put(command)
