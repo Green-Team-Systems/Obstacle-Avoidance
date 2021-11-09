@@ -130,8 +130,8 @@ class ObstacleAvoidance(Process):
             while not killer.kill_now:
                 lidar_data = self.airsim_client.getLidarData()
                 data = lidar_data.point_cloud
-                x_vel, z_vel = self.slopeCalculation(data, 5.0)
-                if not x_vel == 0.0 and not z_vel == 0.0 and z_vel >= 0.9:
+                x_vel, z_vel = self.slopeCalculation(data, 10.0)
+                if not z_vel == 0.0:
                     self.log.info(
                             "{}|{}|vel_command|{}".format(
                                 datetime.utcnow(),
@@ -193,8 +193,8 @@ class ObstacleAvoidance(Process):
                     zVelocity = zVelocity * droneVelocity
                     xVelocity = xVelocity * droneVelocity
 
-                    # print(f'Z speed: {zVelocity}')
-                    # print(f'X speed: {xVelocity}')
+                    print(f'Z speed: {zVelocity}')
+                    print(f'X speed: {xVelocity}')
                     # print(f'X distance: {x_distance}')
                     # print(f'Z distance: {z_distance}')
 

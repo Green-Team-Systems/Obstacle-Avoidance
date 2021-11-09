@@ -7,12 +7,14 @@
 # Description: Module for implementing movement commands to the Aircraft
 # =============================================================================
 
+from os import X_OK
 import setup_path
 import airsim
 import logging
 import time
 import copy
 import numpy as np
+import math as m
 
 from multiprocessing import Process
 from datetime import datetime
@@ -21,6 +23,8 @@ from multiprocessing.queues import Empty
 from utils.data_classes import PosVec3, MovementCommand
 from utils.killer_utils import GracefulKiller
 from airsim.types import YawMode
+from utils.distance_utils import ned_position_difference
+from utils.position_utils import position_to_list
 # TODO Create status library
 
 
@@ -325,6 +329,47 @@ class PathPlanning(Process):
                                 )
                             )
 
+    def position_to_velocity_PID(self,target, currentValue):
+        kP = 0.13
+        kI = 0 #what should the values be I have no clue lmao???
+        kD = 0.2
+        integral, lastError = 0, 0
+
+        current = currentValue
+        error = target - current
+        integral += error
+        derivative = error - lastError
+        lastError = error
+
+        return (((error) * (kP)) + ((derivative) * (kD)) + ((integral) * (kI)))
+
+    def x_Position_to_velocity_PID(self, target):
+        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
+        position = position_to_list(state.kinematics_estimated.position)
+        x_Pos = position.X
+        speed = self.position_to_velocity_PID(target, x_Pos)
+        if speed > 10:
+            speed = 5
+        return speed
+    
+    def y_Position_to_velocity_PID(self, target):
+        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
+        position = position_to_list(state.kinematics_estimated.position)
+        y_Pos = position.Y
+        speed = self.position_to_velocity_PID(target, y_Pos)
+        if speed > 10:
+            speed = 5
+        return speed
+
+    def z_Position_to_velocity_PID(self, target):
+        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
+        position = position_to_list(state.kinematics_estimated.position)
+        z_Pos = position.Z
+        speed = -(self.position_to_velocity_PID(target, z_Pos))
+        if speed > 10:
+            speed = 5
+        return speed
+
     def move_to_next_position(self, command: MovementCommand) -> bool:
         """
         Given a MovementCommand, send the appropriate AirSim API call
@@ -344,34 +389,24 @@ class PathPlanning(Process):
         """
         # TODO Add drivetrain once that is fixed
         if command.move_by == "position":
-            move_future = self.airsim_client.moveToPositionAsync(
-                command.position.X,
-                command.position.Y,
-                command.position.Z,
-                command.speed,
-                yaw_mode=YawMode(False,command.heading),
-                vehicle_name=self.drone_id
-            )
-            time.sleep(0.01)
+            x_Vel = self.x_Position_to_velocity_PID(command.position.X)
+            y_Vel = self.y_Position_to_velocity_PID(command.position.Y)
+            z_Vel = -self.z_Position_to_velocity_PID(command.position.Z)
+            heading = command.heading
+            print(x_Vel)
+            print(y_Vel)
+            print(z_Vel)
         elif command.move_by == "velocity":
-            vx = command.velocity.vx * np.cos(np.radians(self.last_command.heading))
-            vy = command.velocity.vx * np.sin(np.radians(self.last_command.heading))
-            move_future = self.airsim_client.moveByVelocityAsync(
-                vx,
-                vy,
-                command.velocity.vz,
-                0.02,
-                yaw_mode=YawMode(False,self.last_command.heading),
+            x_Vel = command.velocity.vx * np.cos(np.radians(self.last_command.heading))
+            y_Vel = command.velocity.vx * np.sin(np.radians(self.last_command.heading))
+            z_Vel = command.velocity.vz
+            heading = self.last_command.heading
+        self.airsim_client.moveByVelocityAsync(
+                x_Vel,#x_Vel,
+                y_Vel,#y_Vel,
+                z_Vel,#z_Vel,
+                m.inf,
+                yaw_mode=YawMode(False,heading),
                 vehicle_name=self.drone_id
             )
-            # move_future.join()
-            move_future = self.airsim_client.moveToPositionAsync(
-                self.last_command.position.X,
-                self.last_command.position.Y,
-                self.last_command.position.Z,
-                self.last_command.speed - 1.0,
-                yaw_mode=YawMode(False,self.last_command.heading),
-                vehicle_name=self.drone_id
-            )
-        # move_future.join()
         return True

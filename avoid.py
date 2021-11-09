@@ -126,7 +126,7 @@ class LidarTest:
 
             xVelocity, zVelocity = self.slopeCalculation(data, 10) #takes the data as one parameter and 10 is drone speed user inputs
             
-            self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 0.01) 
+            self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 10) 
             time.sleep(0.01)
 
     def parse_lidarData(self, data):

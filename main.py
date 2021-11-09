@@ -76,7 +76,6 @@ if __name__ == "__main__":
             while not arrived:
                 state = airsim_client.getMultirotorState(vehicle_name=drone_id)
                 position = position_to_list(state.kinematics_estimated.position)
-                print(position)
                 dist_to_target = ned_position_difference(
                     command.position,
                     position
