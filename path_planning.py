@@ -392,17 +392,18 @@ class PathPlanning(Process):
             y_Vel = self.y_Position_to_velocity_PID(command.position.Y, position.Y)
             z_Vel = -self.z_Position_to_velocity_PID(command.position.Z, position.Z)
             heading = command.heading
-            self.log.info("{}|{}|velocities|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dump([x_Vel, y_Vel, z_Vel])
-                                )
-                            )
+            
         elif command.move_by == "velocity":
             x_Vel = command.velocity.vx * np.cos(np.radians(self.last_command.heading))
             y_Vel = command.velocity.vx * np.sin(np.radians(self.last_command.heading))
             z_Vel = command.velocity.vz
             heading = self.last_command.heading
+        self.log.info("{}|{}|velocities|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dump([x_Vel, y_Vel, z_Vel])
+                                )
+                            )
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,#x_Vel,
                 y_Vel,#y_Vel,
