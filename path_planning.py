@@ -15,6 +15,7 @@ import time
 import copy
 import numpy as np
 import math as m
+import json
 
 from multiprocessing import Process
 from datetime import datetime
@@ -343,31 +344,27 @@ class PathPlanning(Process):
 
         return (((error) * (kP)) + ((derivative) * (kD)) + ((integral) * (kI)))
 
-    def x_Position_to_velocity_PID(self, target):
-        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
-        position = position_to_list(state.kinematics_estimated.position)
-        x_Pos = position.X
+    def x_Position_to_velocity_PID(self, target, x_Pos):
         speed = self.position_to_velocity_PID(target, x_Pos)
-        if speed > 10:
-            speed = 5
+        speed = self.apply_velocity_constraints(speed)
         return speed
     
-    def y_Position_to_velocity_PID(self, target):
-        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
-        position = position_to_list(state.kinematics_estimated.position)
-        y_Pos = position.Y
+    def y_Position_to_velocity_PID(self, target, y_Pos):
         speed = self.position_to_velocity_PID(target, y_Pos)
-        if speed > 10:
-            speed = 5
+        speed = self.apply_velocity_constraints(speed)
         return speed
 
-    def z_Position_to_velocity_PID(self, target):
-        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
-        position = position_to_list(state.kinematics_estimated.position)
-        z_Pos = position.Z
+    def z_Position_to_velocity_PID(self, target, z_Pos):
         speed = -(self.position_to_velocity_PID(target, z_Pos))
-        if speed > 10:
-            speed = 5
+        speed = self.apply_velocity_constraints(speed, z_val=True)
+        return speed
+    
+    def apply_velocity_constraints(self, speed, z_val=False):
+        # These constraints need to be read from a settings file
+        if not z_val and speed > 5.0:
+            speed = 5.0
+        elif z_val and speed < -5.0:
+            speed = -5.0
         return speed
 
     def move_to_next_position(self, command: MovementCommand) -> bool:
@@ -389,13 +386,18 @@ class PathPlanning(Process):
         """
         # TODO Add drivetrain once that is fixed
         if command.move_by == "position":
-            x_Vel = self.x_Position_to_velocity_PID(command.position.X)
-            y_Vel = self.y_Position_to_velocity_PID(command.position.Y)
-            z_Vel = -self.z_Position_to_velocity_PID(command.position.Z)
+            state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
+            position = position_to_list(state.kinematics_estimated.position)
+            x_Vel = self.x_Position_to_velocity_PID(command.position.X, position.X)
+            y_Vel = self.y_Position_to_velocity_PID(command.position.Y, position.Y)
+            z_Vel = -self.z_Position_to_velocity_PID(command.position.Z, position.Z)
             heading = command.heading
-            print(x_Vel)
-            print(y_Vel)
-            print(z_Vel)
+            self.log.info("{}|{}|velocities|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dump([x_Vel, y_Vel, z_Vel])
+                                )
+                            )
         elif command.move_by == "velocity":
             x_Vel = command.velocity.vx * np.cos(np.radians(self.last_command.heading))
             y_Vel = command.velocity.vx * np.sin(np.radians(self.last_command.heading))
