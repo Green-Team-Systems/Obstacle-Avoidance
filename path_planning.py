@@ -63,6 +63,18 @@ class PathPlanning(Process):
         # TODO Add status updates
         self.status = None
         self.last_command = None
+        self.errors = {
+            "X": 0.0,
+            "Y": 0.0,
+            "Z": 0.0
+        }
+        self.integral_error = {
+            "X": 0.0,
+            "Y": 0.0,
+            "Z": 0.0
+        }
+        self.current_time = datetime.utcnow()
+        self.previous_time = datetime.utcnow()
         # TODO Add an inter-process queue between mapping and self
         FORMAT = '%(asctime)s %(message)s'
         # logging.basicConfig(format=FORMAT,
@@ -330,34 +342,42 @@ class PathPlanning(Process):
                                 )
                             )
 
-    def position_to_velocity_PID(self,target, currentValue):
-        kP = 0.13
-        kI = 0 #what should the values be I have no clue lmao???
+    def calculate_velocities(self,target_pos, current_pos):
+        kP = 0.3
+        kI = 0.0
         kD = 0.2
-        integral, lastError = 0, 0
 
-        current = currentValue
-        error = target - current
-        integral += error
-        derivative = error - lastError
-        lastError = error
+        x_error = target_pos.X - current_pos.x
+        y_error = target_pos.Y - current_pos.y
+        z_error = target_pos.Z - current_pos.z
 
-        return (((error) * (kP)) + ((derivative) * (kD)) + ((integral) * (kI)))
+        now = datetime.utcnow()
+        dt = (now - self.previous_time).total_seconds()
+        self.previous_time = now
 
-    def x_Position_to_velocity_PID(self, target, x_Pos):
-        speed = self.position_to_velocity_PID(target, x_Pos)
-        speed = self.apply_velocity_constraints(speed)
-        return speed
-    
-    def y_Position_to_velocity_PID(self, target, y_Pos):
-        speed = self.position_to_velocity_PID(target, y_Pos)
-        speed = self.apply_velocity_constraints(speed)
-        return speed
+        x_derivative = (x_error - self.errors["X"]) / dt
+        y_derivative = (y_error - self.errors["Y"]) / dt
+        z_derivative = (y_error - self.errors["Y"]) / dt
 
-    def z_Position_to_velocity_PID(self, target, z_Pos):
-        speed = -(self.position_to_velocity_PID(target, z_Pos))
-        speed = self.apply_velocity_constraints(speed, z_val=True)
-        return speed
+        x_integral = (self.integral_error["X"] + x_error) * dt
+        y_integral = (self.integral_error["Y"] + y_error) * dt
+        z_integral = (self.integral_error["Z"] + z_error) * dt
+
+        x_vel = (((x_error) * (kP)) + ((x_derivative) * (kD)) + ((x_integral) * (kI)))
+        y_vel = (((y_error) * (kP)) + ((y_derivative) * (kD)) + ((y_integral) * (kI)))
+        z_vel = -1 * (((z_error) * (kP)) + ((z_derivative) * (kD)) + ((z_integral) * (kI)))
+
+        x_vel = self.apply_velocity_constraints(x_vel)
+        y_vel = self.apply_velocity_constraints(y_vel)
+        z_vel = self.apply_velocity_constraints(z_vel, z_val=True)
+
+        self.errors = {
+            "X": x_error,
+            "Y": y_error,
+            "Z": z_error
+        }
+
+        return x_vel, y_vel, z_vel
     
     def apply_velocity_constraints(self, speed, z_val=False):
         # These constraints need to be read from a settings file
@@ -388,9 +408,7 @@ class PathPlanning(Process):
         if command.move_by == "position":
             state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
             position = position_to_list(state.kinematics_estimated.position)
-            x_Vel = self.x_Position_to_velocity_PID(command.position.X, position.X)
-            y_Vel = self.y_Position_to_velocity_PID(command.position.Y, position.Y)
-            z_Vel = -self.z_Position_to_velocity_PID(command.position.Z, position.Z)
+            x_Vel, y_Vel, z_Vel = self.calculate_velocities(command.position, position)
             heading = command.heading
             
         elif command.move_by == "velocity":
