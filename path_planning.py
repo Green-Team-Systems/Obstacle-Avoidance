@@ -368,9 +368,15 @@ class PathPlanning(Process):
         y_integral = (self.integral_error["Y"] + y_error) * dt
         z_integral = (self.integral_error["Z"] + z_error) * dt
 
-        x_vel = (((x_error) * (kP)) + ((x_derivative) * (kD)) + ((x_integral) * (kI)))
-        y_vel = (((y_error) * (kP)) + ((y_derivative) * (kD)) + ((y_integral) * (kI)))
-        z_vel = -1 * (((z_error) * (kP)) + ((z_derivative) * (kD)) + ((z_integral) * (kI)))
+        x_vel = (((x_error) * (kP))
+                 + ((x_derivative) * (kD))
+                 + ((x_integral) * (kI)))
+        y_vel = (((y_error) * (kP))
+                 + ((y_derivative) * (kD))
+                 + ((y_integral) * (kI)))
+        z_vel = -1 * (((z_error) * (kP))
+                      + ((z_derivative) * (kD))
+                      + ((z_integral) * (kI)))
 
         x_vel = self.apply_velocity_constraints(x_vel)
         y_vel = self.apply_velocity_constraints(y_vel)
@@ -411,14 +417,23 @@ class PathPlanning(Process):
         """
         # TODO Add drivetrain once that is fixed
         if command.move_by == "position":
-            state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
-            position = position_to_list(state.kinematics_estimated.position)
-            x_Vel, y_Vel, z_Vel = self.calculate_velocities(command.position, position)
+            state = self.airsim_client.getMultirotorState(
+                vehicle_name=self.drone_id
+            )
+            position = position_to_list(
+                state.kinematics_estimated.position
+            )
+            x_Vel, y_Vel, z_Vel = self.calculate_velocities(
+                command.position,
+                position
+            )
             heading = command.heading
             
         elif command.move_by == "velocity":
-            x_Vel = command.velocity.vx * np.cos(np.radians(self.last_command.heading))
-            y_Vel = command.velocity.vx * np.sin(np.radians(self.last_command.heading))
+            x_Vel = (command.velocity.vx
+                     * np.cos(np.radians(self.last_command.heading)))
+            y_Vel = (command.velocity.vx
+                     * np.sin(np.radians(self.last_command.heading)))
             z_Vel = command.velocity.vz
             self.previous_velocities = {
                 "VX": x_Vel,
