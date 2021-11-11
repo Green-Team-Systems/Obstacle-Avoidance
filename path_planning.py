@@ -62,7 +62,7 @@ class PathPlanning(Process):
         self.airsim_client = None
         # TODO Add status updates
         self.status = None
-        self.last_command = None
+        self.last_command = MovementCommand()
         self.errors = {
             "X": 0.0,
             "Y": 0.0,
