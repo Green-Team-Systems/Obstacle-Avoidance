@@ -84,7 +84,8 @@ if __name__ == "__main__":
                     print(dist_to_target)
                     arrived = True
                 else:
-                    path_planning_queue.put(command)
+                    pass
+                    # path_planning_queue.put(command)
                 time.sleep(0.5)
     except Exception:
         pass
