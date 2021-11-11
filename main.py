@@ -31,7 +31,7 @@ if __name__ == "__main__":
                     level=logging.INFO,
                     format=FORMAT)
     drone_id = "Drone1"
-    path_planning_queue = Queue()
+    path_planning_queue = Queue(20)
     dist_threshold = 5.0 # meters
 
     airsim_client = airsim.MultirotorClient()
@@ -84,8 +84,7 @@ if __name__ == "__main__":
                     print(dist_to_target)
                     arrived = True
                 else:
-                    pass
-                    # path_planning_queue.put(command)
+                    path_planning_queue.put(command)
                 time.sleep(0.5)
     except Exception:
         pass

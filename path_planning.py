@@ -349,12 +349,12 @@ class PathPlanning(Process):
 
     def calculate_velocities(self,target_pos, current_pos):
         kP = 0.3
-        kI = 0.0
-        kD = 0.2
-
-        x_error = target_pos.X - current_pos.x
-        y_error = target_pos.Y - current_pos.y
-        z_error = target_pos.Z - current_pos.z
+        kI = 0.01
+        kD = 0.01
+        # print(target_pos.Z, current_pos.Z)
+        x_error = target_pos.X - current_pos.X
+        y_error = target_pos.Y - current_pos.Y
+        z_error = -1 * (target_pos.Z - current_pos.Z)
 
         now = datetime.utcnow()
         dt = (now - self.previous_time).total_seconds()
@@ -392,10 +392,10 @@ class PathPlanning(Process):
     
     def apply_velocity_constraints(self, speed, z_val=False):
         # These constraints need to be read from a settings file
-        if not z_val and speed > 5.0:
-            speed = 5.0
-        elif z_val and speed < -5.0:
-            speed = -5.0
+        if not z_val and speed > 20:
+            speed = 20
+        elif z_val and speed < -20.0:
+            speed = -20.0
         return speed
 
     def move_to_next_position(self, command: MovementCommand) -> bool:
@@ -428,6 +428,12 @@ class PathPlanning(Process):
                 position
             )
             heading = command.heading
+            self.log.info("{}|{}|velocities|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dumps([x_Vel, y_Vel, z_Vel])
+                                )
+                            )
             
         elif command.move_by == "velocity":
             x_Vel = (command.velocity.vx
@@ -441,12 +447,7 @@ class PathPlanning(Process):
                 "VZ": z_Vel,
             }
             heading = self.last_command.heading
-        self.log.info("{}|{}|velocities|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dump([x_Vel, y_Vel, z_Vel])
-                                )
-                            )
+        
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,

@@ -185,7 +185,7 @@ class ObstacleAvoidance(Process):
                     z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
 
                     x_distance = math.fabs(x2_distance - x1_distance)
-                    z_distance = math.fabs(z2_distance - z1_distance)
+                    z_distance = z2_distance - z1_distance
 
                     hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
                     zVelocity = (z_distance / hypo)
@@ -193,8 +193,8 @@ class ObstacleAvoidance(Process):
                     zVelocity = zVelocity * droneVelocity
                     xVelocity = xVelocity * droneVelocity
 
-                    print(f'Z speed: {zVelocity}')
-                    print(f'X speed: {xVelocity}')
+                    # print(f'Z speed: {zVelocity}')
+                    # print(f'X speed: {xVelocity}')
                     # print(f'X distance: {x_distance}')
                     # print(f'Z distance: {z_distance}')
 
