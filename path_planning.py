@@ -73,6 +73,11 @@ class PathPlanning(Process):
             "Y": 0.0,
             "Z": 0.0
         }
+        self.previous_velocities = {
+                "VX": 0.0,
+                "VY": 0.0,
+                "VZ": 0.0,
+            }
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
         # TODO Add an inter-process queue between mapping and self
@@ -415,6 +420,11 @@ class PathPlanning(Process):
             x_Vel = command.velocity.vx * np.cos(np.radians(self.last_command.heading))
             y_Vel = command.velocity.vx * np.sin(np.radians(self.last_command.heading))
             z_Vel = command.velocity.vz
+            self.previous_velocities = {
+                "VX": x_Vel,
+                "VY": y_Vel,
+                "VZ": z_Vel,
+            }
             heading = self.last_command.heading
         self.log.info("{}|{}|velocities|{}".format(
                                 datetime.utcnow(),
@@ -423,9 +433,9 @@ class PathPlanning(Process):
                                 )
                             )
         self.airsim_client.moveByVelocityAsync(
-                x_Vel,#x_Vel,
-                y_Vel,#y_Vel,
-                z_Vel,#z_Vel,
+                x_Vel,
+                y_Vel,
+                z_Vel,
                 m.inf,
                 yaw_mode=YawMode(False,heading),
                 vehicle_name=self.drone_id
