@@ -21,7 +21,7 @@ from multiprocessing import Process
 from datetime import datetime
 from multiprocessing.queues import Empty
 
-from utils.data_classes import PosVec3, MovementCommand
+from utils.data_classes import PosVec3, MovementCommand, VelVec3
 from utils.killer_utils import GracefulKiller
 from airsim.types import YawMode
 from utils.distance_utils import ned_position_difference
@@ -63,6 +63,7 @@ class PathPlanning(Process):
         # TODO Add status updates
         self.status = None
         self.last_command = MovementCommand()
+        self.last_velocities = VelVec3()
         self.errors = {
             "X": 0.0,
             "Y": 0.0,
@@ -434,12 +435,15 @@ class PathPlanning(Process):
                                 json.dumps([x_Vel, y_Vel, z_Vel])
                                 )
                             )
-            
+            self.last_velocities.vx = x_Vel
+            self.last_velocities.vy = y_Vel
         elif command.move_by == "velocity":
-            x_Vel = (command.velocity.vx
-                     * np.cos(np.radians(self.last_command.heading)))
-            y_Vel = (command.velocity.vx
-                     * np.sin(np.radians(self.last_command.heading)))
+            # x_Vel = (command.velocity.vx
+            #         * np.cos(np.radians(self.last_command.heading)))
+            #y_Vel = (command.velocity.vx
+            #         * np.sin(np.radians(self.last_command.heading)))
+            x_Vel = self.last_velocities.vx
+            y_Vel = self.last_velocities.vy
             z_Vel = command.velocity.vz
             self.previous_velocities = {
                 "VX": x_Vel,
