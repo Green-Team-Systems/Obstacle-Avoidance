@@ -192,16 +192,15 @@ class LidarTest:
 
         return x_val, y_val, z_val
 
-    def checkForCollision(self, overall_point_list):
+    def checkForCollision(self, collision_distance, overall_point_list):
         #stop = False
         
         x_val, y_val, z_val = self.vision(overall_point_list)
         # print(f"x val: {x_val}" )
         # print(f"y val: {y_val}" )
         # print(f"z val: {z_val}" )
-        if( x_val <= self.collisiondist):
+        if( x_val <= collision_distance):
             # self.stopDrone()
-            self.collision = True
             return True
         return False
 
@@ -377,13 +376,144 @@ class LidarTest:
             vector = [(point[0] - first_point[0]), (point[1] - first_point[1])]
             sum_vector = [sum_vector[0] + vector[0], sum_vector[1] + vector[1]]
             
-        
-        
         return sum_vector
 
 
-        
+    def follow_vector(self, vector, velocity, vehicle_name):
+        #cant we just do this to move to the vector
+        #if we return sum vector as a tuple it might be a little cleaner, but whatever
+        # why not move 
+        # oh yeah i think that will work better
+        self.client.moveToPositionAsync(vector[0], vector[1], 0, velocity, 0.5, vehicle_name=vehicle_name)
+        # self.client.moveByVelocityAsync(vector[0], vector[1], vector[2]
+
+        return
     
+    def approach(self, vehicle_name, lidar_names):
+        collisioncheck = False
+        shouldMove = True
+        try:
+            while shouldMove==True:
+                
+                overall_point_list = self.scan(vehicle_name,lidar_names)
+                self.client.moveByVelocityBodyFrameAsync(3, 0, 0,0.1)
+                
+                collisioncheck = self.checkForCollision(5, overall_point_list)
+
+                # exit when collision into obstacle
+                if(collisioncheck == True):
+                    self.stopDrone()
+                    
+                    shouldMove = False
+                    
+        except KeyboardInterrupt:
+            airsim.wait_key('Press any key to stop running this script')
+            lidarTest.stop()
+            print("Done!\n")
+    
+    def angle_of_vectors(self, vector1, vector2):
+        [a, b] = vector1
+        [c, d] = vector2
+
+        dotProduct = a*c + b*d
+            # for three dimensional simply add dotProduct = a*c + b*d  + e*f 
+        #distance
+        modOfVector1 = math.sqrt( a*a + b*b)*math.sqrt(c*c + d*d) 
+            # for three dimensional simply add modOfVector = math.sqrt( a*a + b*b + e*e)*math.sqrt(c*c + d*d +f*f) 
+        angle = dotProduct/modOfVector1
+        #  print("Cosθ =",angle)
+        #  angleInDegree = math.degrees(math.acos(angle))
+        angleInRad = math.acos(angle)
+        #  print("θ =",angleInDegree,"°")
+
+        return angleInRad
+
+    def normalize_vector(self, vector):
+        normalized_vector = [vector[0]/math.sqrt(vector[0]**2 + vector[1]**2), vector[1]/math.sqrt(vector[0]**2 + vector[1]**2)]
+        return normalized_vector
+
+    def vector_from_wall(self, wall_vector):
+        
+        offwallvector = [(math.cos(math.sqrt(2)/2) * wall_vector[0]) - (math.sin(math.sqrt(2)/2) * wall_vector[1]), (math.sin(math.sqrt(2)/2) * wall_vector[0]) + (math.cos(math.sqrt(2)/2)* wall_vector[1])]
+        return offwallvector
+
+    def angle_from_drone_to_vector(self, vector, vehicle_name, lidar_names):
+        print('turning towards goal')
+        self.client.hoverAsync().join()
+        
+        
+        length = 5
+        w_val, x_val, y_val, z_val = (self.client.getMultirotorState().kinematics_estimated.orientation)
+        x_pos, y_pos, z_pos = (self.client.getMultirotorState().kinematics_estimated.position)
+        roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
+        points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
+        # gps = self.client.getLidarData(lidar_name=lidar_names[0],vehicle_name=vehicle_name).pose.position
+        # print(gps)
+
+        # u1 = self.destination[0] - x_pos
+        # u2 = self.destination[1] - y_pos
+
+        u1 = vector[0]
+        u2 = vector[1]
+
+        [u1,u2] = self.normalize_vector([u1, u2])
+
+        v1 = points[0] - x_pos
+        v2 = points[1] - y_pos
+
+        [v1,v2] = self.normalize_vector([v1, v2])
+
+
+        angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
+        
+        return angleInRad
+        
+        
+    def euler_from_quaternion(self,x, y, z, w):
+        """
+        Convert a quaternion into euler angles (roll, pitch, yaw)
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+        """
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+     
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+     
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+     
+        return roll_x, pitch_y, yaw_z # in radians            
+            
+    def angle_of_vectors(self, vector1, vector2):
+        [a, b] = vector1
+        [c, d] = vector2
+
+        dotProduct = a*c + b*d
+            # for three dimensional simply add dotProduct = a*c + b*d  + e*f 
+        modOfVector1 = math.sqrt( a*a + b*b)*math.sqrt(c*c + d*d) 
+            # for three dimensional simply add modOfVector = math.sqrt( a*a + b*b + e*e)*math.sqrt(c*c + d*d +f*f) 
+        
+        
+
+        angle = dotProduct/modOfVector1
+        #  print("Cosθ =",angle)
+        #  angleInDegree = math.degrees(math.acos(angle))
+        angleInRad = math.acos(angle)
+        #  print("θ =",angleInDegree,"°")
+
+        return angleInRad
+
+    def stopDrone(self):
+        print('Stopping')
+        self.client.moveByVelocityAsync(0, 0, 0, 2).join()
+        self.client.hoverAsync()
 
     def execute(self,vehicle_name,lidar_names):
         print("arming the drone...")
@@ -413,23 +543,57 @@ class LidarTest:
         
 
         try:
-            
+            #approach to within 5 meters of wall
+            self.approach(vehicle_name, lidar_names)
+            #turn lidar data into list
             overall_point_list = self.scan(vehicle_name,lidar_names)
-            
-            #booltuple = self.booleanArray_parser(10, overall_point_list, self.chooseRow(overall_point_list))
+            #choose the row nearest to z = 0 (relative to drone)
             chosenRowIndex = self.chooseRow(overall_point_list)
-            booleanArray, blah, blas, bla = self.booleanArray_parser(10, overall_point_list, chosenRowIndex)
-            print('Lidar row len: ' + str(len(overall_point_list[chosenRowIndex])))
-            print('booleanArray row len: ' + str(len(booleanArray)))
-            print ("booleanArray: ")
-            print (booleanArray)
-            print ("chosen Row: ")
-            print(chosenRowIndex)
-            print (overall_point_list[chosenRowIndex])
-            self.wall_drawer(booleanArray, overall_point_list[chosenRowIndex])
+            #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
             fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-            # print('FIXED: ' + str(fixedchosenRow))
-            print('Sum vector: ' + str(self.calculate_sum_vector(fixedchosenRow)))
+            # get vector 45 degrees from wall 
+            vectorfromwall = self.vector_from_wall(self.calculate_sum_vector(fixedchosenRow))
+            # get angle from drone to wall vector
+            angleInRad = self.angle_from_drone_to_vector(vectorfromwall, vehicle_name, lidar_names)
+            print(angleInRad)
+            #self.client.rotateToYawAsync(angleInRad, timeout_sec=30, margin=0.1, vehicle_name=vehicle_name).join()
+            # self.client.rotateToYawAsync(2, 10, 0.1, vehicle_name=vehicle_name)
+            # time.sleep(10)
+            
+            # overall_point_list = self.scan(vehicle_name,lidar_names)
+            
+            # #booltuple = self.booleanArray_parser(10, overall_point_list, self.chooseRow(overall_point_list))
+            # chosenRowIndex = self.chooseRow(overall_point_list)
+            # booleanArray = self.booleanArray_parser(10, overall_point_list, chosenRowIndex)[0]
+            # print('Lidar row len: ' + str(len(overall_point_list[chosenRowIndex])))
+            # print('booleanArray row len: ' + str(len(booleanArray)))
+            # print ("booleanArray: ")
+            # print (booleanArray)
+            # print ("chosen Row: ")
+            # print(chosenRowIndex)
+            # print (overall_point_list[chosenRowIndex])
+            # self.wall_drawer(booleanArray, overall_point_list[chosenRowIndex])
+            # fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
+            # # print('FIXED: ' + str(fixedchosenRow))
+            # print('Sum vector: ' + str(self.calculate_sum_vector(fixedchosenRow)))
+            startTime = time.time()
+            while((time.time() - startTime) <= 100):
+                try:
+                    overall_point_list = self.scan(vehicle_name,lidar_names)
+                    chosenRowIndex = self.chooseRow(overall_point_list)
+                    fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
+                    print('following vector')
+                    self.follow_vector(self.calculate_sum_vector(fixedchosenRow), 5, vehicle_name)
+                    vectorfromwall = self.vector_from_wall(self.calculate_sum_vector(fixedchosenRow))       
+                    angleInRad = self.angle_from_drone_to_vector(vectorfromwall, vehicle_name, lidar_names)                   
+                    # self.client.rotateToYawAsync(angleInRad, timeout_sec=0.5, margin=0.1, vehicle_name=vehicle_name)
+                except KeyboardInterrupt:
+                    lidarTest.stop()
+                    break
+
+            
+
+                
             
             
             
