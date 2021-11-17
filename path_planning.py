@@ -438,10 +438,6 @@ class PathPlanning(Process):
             self.last_velocities.vx = x_Vel
             self.last_velocities.vy = y_Vel
         elif command.move_by == "velocity":
-            # x_Vel = (command.velocity.vx
-            #         * np.cos(np.radians(self.last_command.heading)))
-            #y_Vel = (command.velocity.vx
-            #         * np.sin(np.radians(self.last_command.heading)))
             x_Vel = self.last_velocities.vx
             y_Vel = self.last_velocities.vy
             z_Vel = command.velocity.vz
