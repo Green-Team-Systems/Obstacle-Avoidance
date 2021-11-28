@@ -27,12 +27,18 @@ from itertools import groupby
 # continue back to going right (relative to the fov window) until wallrun is true
 
 # Makes the drone fly and get Lidar data
-class LidarTest:
+
+class ObstacleAvoidance:
     
-    destination = (100,0,0)
+    destination = (-100, 0, 0)
     collisiondist = 4
     isTurning = False
     collision = False
+
+    @property
+    def estimated_kinematics(self):
+        return self.client.getMultirotorState().kinematics_estimated
+
 
     def __init__(self):
 
@@ -51,6 +57,18 @@ class LidarTest:
         airsim.wait_key('Press any key to takeoff')
         self.client.takeoffAsync().join()
         state = self.client.getMultirotorState()
+
+    """
+    Description: This function is used to get the lidar point list data from the drone.
+    
+    Inputs:vehicle name,lidar names
+    
+    Outputs: 2d Array of 3d Lidar Data
+    
+    Notes: Array is grouped by rows, each row is a list of 3d points
+    structured as follows - [[[x,y,z],[x,y,z],[x,y,z]], [[x,y,z],[x,y,z],[x,y,z]], [[x,y,z],[x,y,z],[x,y,z]]]
+
+    """
 
     def scan(self,vehicle_name,lidar_names):
         # print('Scanning ...')
@@ -73,21 +91,28 @@ class LidarTest:
                 y_points_last = xyz[1]
         return overall_point_list
 
+    """
+    Description: Turn drone towards goal asynchronous
+    
+    Inputs: vehicle_name, lidar_names
+    
+    Outputs: 
+    
+    Notes: Need to fix function to save coordinates in class
+
+    """
+
     def turnTowardsGoal(self, vehicle_name, lidar_names):
         print('turning towards goal')
-        self.client.hoverAsync().join()
         dist = math.sqrt((self.destination[0]**2)+(self.destination[1]**2))
         #theta = math.acos()
         rotate = True
         isTurning = True
-
-        # while rotate == True:
-        #airsim.types.EnvironmentState.position
-        # print(self.client.getMultirotorState().orientation)
         
         length = 5
-        w_val, x_val, y_val, z_val = (self.client.getMultirotorState().kinematics_estimated.orientation)
-        x_pos, y_pos, z_pos = (self.client.getMultirotorState().kinematics_estimated.position)
+        kinematicsEstimated = self.client.getMultirotorState().kinematics_estimated
+        w_val, x_val, y_val, z_val = (kinematicsEstimated.orientation)
+        x_pos, y_pos, z_pos = (kinematicsEstimated.position)
         roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
         points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
         # gps = self.client.getLidarData(lidar_name=lidar_names[0],vehicle_name=vehicle_name).pose.position
@@ -100,17 +125,26 @@ class LidarTest:
         v2 = points[1] - y_pos
 
         angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
-        
+        angleInDegrees = math.degrees(angleInRad)
 
         # angle = self.angle_of_vectors()
         #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, vehicle_name=vehicle_name).join()
-        self.client.rotateToYawAsync(angleInRad, timeout_sec=0.1, margin=0.1, vehicle_name=vehicle_name)
-        return angleInRad
+        self.client.rotateToYawAsync(angleInDegrees, timeout_sec=0.1, margin=0.1, vehicle_name=vehicle_name)
+        return angleInRad, angleInDegrees
         
-        
+    """
+    Description: Turn drone towards goal synchronous
+    
+    Inputs: vehicle_name, lidar_names
+    
+    Outputs: 
+    
+    Notes: Need to fix function to save coordinates in class
+
+    """
+
     def turnTowardsGoalSynchronous(self, vehicle_name, lidar_names):
         print('turning towards goal')
-        self.client.hoverAsync().join()
         dist = math.sqrt((self.destination[0]**2)+(self.destination[1]**2))
         #theta = math.acos()
         rotate = True
@@ -121,8 +155,10 @@ class LidarTest:
         # print(self.client.getMultirotorState().orientation)
         
         length = 5
-        w_val, x_val, y_val, z_val = (self.client.getMultirotorState().kinematics_estimated.orientation)
-        x_pos, y_pos, z_pos = (self.client.getMultirotorState().kinematics_estimated.position)
+        # getter method updates this value
+        _estimated_kinematics = self.estimated_kinematics
+        w_val, x_val, y_val, z_val = (_estimated_kinematics.orientation)
+        x_pos, y_pos, z_pos = (_estimated_kinematics.position)
         roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
         points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
         # gps = self.client.getLidarData(lidar_name=lidar_names[0],vehicle_name=vehicle_name).pose.position
@@ -135,22 +171,31 @@ class LidarTest:
         v2 = points[1] - y_pos
 
         angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
-        
+        angleInDegrees = math.degrees(angleInRad)
 
         # angle = self.angle_of_vectors()
         #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, vehicle_name=vehicle_name).join()
         # print('started turning towards goal')
-        self.client.rotateToYawAsync(angleInRad, timeout_sec=10, margin=0.1, vehicle_name=vehicle_name).join()
+        self.client.rotateToYawAsync(angleInDegrees, timeout_sec=10, margin=0.1, vehicle_name=vehicle_name).join()
         # print('finished turning towards goal')
-        return angleInRad
+        return angleInRad, angleInDegrees
 
-    def euler_from_quaternion(self,x, y, z, w):
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
+    """
+    Description: Convert a quaternion into euler angles (roll, pitch, yaw)
+    
+    Inputs: 
+    
+    Outputs:Orientation in Euler radian roll_x, pitch_y, yaw_z
+    
+    Notes:
         roll is rotation around x in radians (counterclockwise)
         pitch is rotation around y in radians (counterclockwise)
         yaw is rotation around z in radians (counterclockwise)
-        """
+
+    """
+
+    def euler_from_quaternion(self,x, y, z, w):
+
         t0 = +2.0 * (w * x + y * z)
         t1 = +1.0 - 2.0 * (x * x + y * y)
         roll_x = math.atan2(t0, t1)
@@ -165,22 +210,8 @@ class LidarTest:
         yaw_z = math.atan2(t3, t4)
      
         return roll_x, pitch_y, yaw_z # in radians            
-            
-    def angle_of_vectors(self, vector1, vector2):
-        [a, b] = vector1
-        [c, d] = vector2
 
-        dotProduct = a*c + b*d
-            # for three dimensional simply add dotProduct = a*c + b*d  + e*f 
-        modOfVector1 = math.sqrt( a*a + b*b)*math.sqrt(c*c + d*d) 
-            # for three dimensional simply add modOfVector = math.sqrt( a*a + b*b + e*e)*math.sqrt(c*c + d*d +f*f) 
-        angle = dotProduct/modOfVector1
-        #  print("Cosθ =",angle)
-        #  angleInDegree = math.degrees(math.acos(angle))
-        angleInRad = math.acos(angle)
-        #  print("θ =",angleInDegree,"°")
 
-        return angleInRad
 
     def vision(self, overall_point_list):
       
@@ -204,9 +235,6 @@ class LidarTest:
             return True
         return False
 
-    def goForward(self):
-        print('Thrust Forward')
-        self.client.moveByVelocityBodyFrameAsync(3, 0, 0,0.1)
 
     def stop(self):
 
@@ -217,6 +245,17 @@ class LidarTest:
 
         self.client.enableApiControl(False)
         print("Done!\n")
+
+    """
+    Description: Find closest row parallel to the z level of the drone
+    
+    Inputs: overall_point_list
+    
+    Outputs: row index i
+    
+    Notes:
+
+    """
 
     def chooseRow(self, overall_point_list):
         # print(overall_point_list)
@@ -234,12 +273,22 @@ class LidarTest:
                 if(abs(mid_point_z) < abs(z_level_row)):
                     z_level_row = mid_point_z
                     # print(z_level_row)
-                    print('Found new row')
+                    # print('Found new row')
                     i = row_index
 
         # print ("chose row" + str(i))
         return i
 
+    """
+    Description: Produce a array of boolean values for each point in the row based on distance threshold
+    
+    Inputs: view_distance, overall_point_list, row_index
+    
+    Outputs: boolean array
+    
+    Notes: Used to find the obstacles location in relation to the drones FOV
+
+    """
 
     def booleanArray_parser(self, view_distance, overall_point_list, row_index):
         booleanArray = list()
@@ -272,6 +321,7 @@ class LidarTest:
         narrow_view = np.array(narrow_view)
 
         return booleanArray, leftHalf_booleanArray, rightHalf_booleanArray, narrow_view
+
 
     def split_list(self,thelist, delimiter):
         ''' Split a list into sub lists, depending on a delimiter.
@@ -311,9 +361,21 @@ class LidarTest:
         return results
 
 
+
     def wall_drawer(self, booleanArray, chosen_row):
         # print([list(j) for i, j in groupby(booleanArray)])
         self.split_list(booleanArray, 0)
+
+    """
+    Description: detects gaps between points and returns row of lidar points with a gap symbol
+    
+    Inputs: threshold - distance between points, row of points
+    
+    Outputs: Fixed row of points
+    
+    Notes:
+
+    """
 
     def dataFixer(self, threshold, chosen_row):
 
@@ -324,16 +386,31 @@ class LidarTest:
         for ind, point_val in enumerate(chosen_row):
             # [point_x, point_y] = np.array([point_val[0], point_val[1]])
             temp = last_point - np.array([point_val[0], point_val[1]])
-            dist = np.sqrt(temp[0]**2 + temp[1]**2)
+            vector_dist = np.sqrt(temp[0]**2 + temp[1]**2)
 
-            if dist > threshold:
-                print('inserted')
+            #calculated the vector distance between two points to see if there's a gap in the lidar data
+            if vector_dist > threshold:
+                # print('inserted')
                 chosen_row.insert(ind, 'G')
             
             last_point = np.array([point_val[0], point_val[1]])
 
         return chosen_row
-                
+    
+    def view_distance_filter(self, view_distance, fixed_row):
+
+        #Todo: make function consider 'G'
+        filtered_row = []
+        for ind, val in enumerate(fixed_row):
+            
+            if val != 'G':
+                dist = val[0]
+                if(dist <= view_distance):
+                    filtered_row.append(val)
+
+        return filtered_row
+        
+
     def calculate_slope(self, fixed_row):
         #find left-most chunk of points between gaps
 
@@ -348,23 +425,44 @@ class LidarTest:
         slope = (last_point[1] - first_point[1]) / (last_point[0] - first_point[0])
         #y = slope * x + firstpoint[1]  
         return slope
-        
-    def calculate_vector(self, fixed_row):
-        #find left-most chunk of points between gaps
 
-        first_point = fixed_row[0]
-        last_point = fixed_row[0]
-        for ind, point in enumerate(fixed_row):
-            #this will break if a G is at the start of the row
-            if point == 'G':
-                last_point = fixed_row[ind - 1]
-                break
-            last_point = fixed_row[ind]
-        
-        vector = ((last_point[0] - first_point[0]), (last_point[1] - first_point[1]))
-        return vector
+    # """
+    # Description:
+    
+    # Inputs:
+    
+    # Outputs:
+    
+    # Notes:
 
-    def calculate_sum_vector(self, fixed_row):
+    # """        
+    # def estimate_object_vector(self, fixed_row):
+    #     #find left-most chunk of points between gaps
+
+    #     first_point = fixed_row[0]
+    #     last_point = fixed_row[0]
+    #     for ind, point in enumerate(fixed_row):
+    #         #this will break if a G is at the start of the row
+    #         if point == 'G':
+    #             last_point = fixed_row[ind - 1]
+    #             break
+    #         last_point = fixed_row[ind]
+        
+    #     vector = ((last_point[0] - first_point[0]), (last_point[1] - first_point[1]))
+    #     return vector
+
+    """
+    Description: Calculate the sum of the vectors from left to right
+    
+    Inputs: row of lidar points 
+    
+    Outputs: sum vector
+    
+    Notes:
+
+    """
+
+    def calculate_object_sum_vector(self, fixed_row):
         #find left-most chunk of points between gaps
 
         first_point = fixed_row[0]
@@ -373,6 +471,7 @@ class LidarTest:
             #this will break if a G is at the start of the row
             if point == 'G':
                 break
+            
             vector = [(point[0] - first_point[0]), (point[1] - first_point[1])]
             sum_vector = [sum_vector[0] + vector[0], sum_vector[1] + vector[1]]
             
@@ -380,15 +479,24 @@ class LidarTest:
 
 
     def follow_vector(self, vector, velocity, vehicle_name):
-        #cant we just do this to move to the vector
-        #if we return sum vector as a tuple it might be a little cleaner, but whatever
-        # why not move 
-        # oh yeah i think that will work better
+        
+        #follow parallel to obstacle (strafe)
         self.client.moveToPositionAsync(vector[0], vector[1], 0, velocity, 0.5, vehicle_name=vehicle_name)
         # self.client.moveByVelocityAsync(vector[0], vector[1], vector[2]
 
         return
+
+    """
+    Description: Move forward until the lidar detects an obstacle
     
+    Inputs: vehicle_name, lidar name
+    
+    Outputs: None
+    
+    Notes:
+
+    """
+
     def approach(self, vehicle_name, lidar_names):
         collisioncheck = False
         shouldMove = True
@@ -410,41 +518,54 @@ class LidarTest:
             airsim.wait_key('Press any key to stop running this script')
             lidarTest.stop()
             print("Done!\n")
-    
-    def angle_of_vectors(self, vector1, vector2):
-        [a, b] = vector1
-        [c, d] = vector2
-
-        dotProduct = a*c + b*d
-            # for three dimensional simply add dotProduct = a*c + b*d  + e*f 
-        #distance
-        modOfVector1 = math.sqrt( a*a + b*b)*math.sqrt(c*c + d*d) 
-            # for three dimensional simply add modOfVector = math.sqrt( a*a + b*b + e*e)*math.sqrt(c*c + d*d +f*f) 
-        angle = dotProduct/modOfVector1
-        #  print("Cosθ =",angle)
-        #  angleInDegree = math.degrees(math.acos(angle))
-        angleInRad = math.acos(angle)
-        #  print("θ =",angleInDegree,"°")
-
-        return angleInRad
 
     def normalize_vector(self, vector):
-        normalized_vector = [vector[0]/math.sqrt(vector[0]**2 + vector[1]**2), vector[1]/math.sqrt(vector[0]**2 + vector[1]**2)]
+        
+
+        try:
+            vx = vector[0] / math.sqrt(vector[0]**2 + vector[1]**2)
+            vy = vector[1] / math.sqrt(vector[0]**2 + vector[1]**2)
+            normalized_vector = [vx, vy]
+        except ZeroDivisionError:
+            return 0
+
         return normalized_vector
 
+    """
+    Description: Calculates the offset angle (45 deg) from the wall vector
+    
+    Inputs: wall vector
+    
+    Outputs: Offset wall vector
+    
+    Notes:
+
+    """
+
     def vector_from_wall(self, wall_vector):
-        
-        offwallvector = [(math.cos(math.sqrt(2)/2) * wall_vector[0]) - (math.sin(math.sqrt(2)/2) * wall_vector[1]), (math.sin(math.sqrt(2)/2) * wall_vector[0]) + (math.cos(math.sqrt(2)/2)* wall_vector[1])]
+        #rotates vector by 45 degrees
+        offwallvector = [(math.cos(math.sqrt(3)/2) * wall_vector[0]) - (math.sin(1/2) * wall_vector[1]), (math.sin(math.sqrt(2)/2) * wall_vector[0]) + (math.cos(math.sqrt(2)/2)* wall_vector[1])]
         return offwallvector
+
+    """
+    Description: Calculate the angle from the drone orientation vector to the input vector
+    
+    Inputs: objective vector
+    
+    Outputs: angle in degrees
+    
+    Notes:
+
+    """
 
     def angle_from_drone_to_vector(self, vector, vehicle_name, lidar_names):
         print('turning towards goal')
-        self.client.hoverAsync().join()
         
         
         length = 5
-        w_val, x_val, y_val, z_val = (self.client.getMultirotorState().kinematics_estimated.orientation)
-        x_pos, y_pos, z_pos = (self.client.getMultirotorState().kinematics_estimated.position)
+        _estimated_kinematics = self.estimated_kinematics
+        w_val, x_val, y_val, z_val = (_estimated_kinematics.orientation)
+        x_pos, y_pos, z_pos = (_estimated_kinematics.position)
         roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
         points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
         # gps = self.client.getLidarData(lidar_name=lidar_names[0],vehicle_name=vehicle_name).pose.position
@@ -463,34 +584,25 @@ class LidarTest:
 
         [v1,v2] = self.normalize_vector([v1, v2])
 
-
+        
         angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
+        angleInDegrees = math.degrees(angleInRad)
         
-        return angleInRad
-        
-        
-    def euler_from_quaternion(self,x, y, z, w):
-        """
-        Convert a quaternion into euler angles (roll, pitch, yaw)
-        roll is rotation around x in radians (counterclockwise)
-        pitch is rotation around y in radians (counterclockwise)
-        yaw is rotation around z in radians (counterclockwise)
-        """
-        t0 = +2.0 * (w * x + y * z)
-        t1 = +1.0 - 2.0 * (x * x + y * y)
-        roll_x = math.atan2(t0, t1)
-     
-        t2 = +2.0 * (w * y - z * x)
-        t2 = +1.0 if t2 > +1.0 else t2
-        t2 = -1.0 if t2 < -1.0 else t2
-        pitch_y = math.asin(t2)
-     
-        t3 = +2.0 * (w * z + x * y)
-        t4 = +1.0 - 2.0 * (y * y + z * z)
-        yaw_z = math.atan2(t3, t4)
-     
-        return roll_x, pitch_y, yaw_z # in radians            
-            
+        return angleInRad, angleInDegrees
+
+          
+
+    """
+    Description: Takes two vectors and returns the angle between them
+    
+    Inputs: vector1, vector2
+    
+    Outputs: angle (radians)
+    
+    Notes:
+
+    """
+
     def angle_of_vectors(self, vector1, vector2):
         [a, b] = vector1
         [c, d] = vector2
@@ -504,7 +616,7 @@ class LidarTest:
 
         angle = dotProduct/modOfVector1
         #  print("Cosθ =",angle)
-        #  angleInDegree = math.degrees(math.acos(angle))
+        # angleInDegree = math.degrees(math.acos(angle))
         angleInRad = math.acos(angle)
         #  print("θ =",angleInDegree,"°")
 
@@ -513,8 +625,17 @@ class LidarTest:
     def stopDrone(self):
         print('Stopping')
         self.client.moveByVelocityAsync(0, 0, 0, 2).join()
-        self.client.hoverAsync()
+        
+    """
+    Description:
+    
+    Inputs:
+    
+    Outputs:
+    
+    Notes:
 
+    """
     def execute(self,vehicle_name,lidar_names):
         print("arming the drone...")
         
@@ -525,24 +646,16 @@ class LidarTest:
         airsim.wait_key('Press any key to move vehicle to (-10, 10, -10) at 5 m/s')
         # self.client.moveToPositionAsync(20, 0, 0, 5).join()
         self.client.moveToPositionAsync(0, 0, -1, 5).join()
-        self.client.hoverAsync().join()
 
         print('Scanning Has Started\n')
         print('Use Keyboard Interrupt \'CTRL + C\' to Stop Scanning\n')
         # [Go Forward, Turn Right, Turn Left]
 
-        
         Armed = True
-
-        #have a theta offset that will grow as the drone rotates away from the goal. keep rotating and growing offset until the drone sees all zeros.
-        #move forward, and turn slowly towards the goal as the drone is moving
-
-
-        #turn to goal when 
-
         
 
         try:
+            self.turnTowardsGoalSynchronous(vehicle_name,lidar_names)
             #approach to within 5 meters of wall
             self.approach(vehicle_name, lidar_names)
             #turn lidar data into list
@@ -551,64 +664,42 @@ class LidarTest:
             chosenRowIndex = self.chooseRow(overall_point_list)
             #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
             fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
+            
+            filtered_row = self.view_distance_filter(5, fixedchosenRow)
+
             # get vector 45 degrees from wall 
-            vectorfromwall = self.vector_from_wall(self.calculate_sum_vector(fixedchosenRow))
+            vectorfromwall = self.vector_from_wall(self.calculate_object_sum_vector(filtered_row))
+            print("Vector from wall: " + str(vectorfromwall))
             # get angle from drone to wall vector
-            angleInRad = self.angle_from_drone_to_vector(vectorfromwall, vehicle_name, lidar_names)
-            print(angleInRad)
-            #self.client.rotateToYawAsync(angleInRad, timeout_sec=30, margin=0.1, vehicle_name=vehicle_name).join()
-            # self.client.rotateToYawAsync(2, 10, 0.1, vehicle_name=vehicle_name)
-            # time.sleep(10)
-            
-            # overall_point_list = self.scan(vehicle_name,lidar_names)
-            
-            # #booltuple = self.booleanArray_parser(10, overall_point_list, self.chooseRow(overall_point_list))
-            # chosenRowIndex = self.chooseRow(overall_point_list)
-            # booleanArray = self.booleanArray_parser(10, overall_point_list, chosenRowIndex)[0]
-            # print('Lidar row len: ' + str(len(overall_point_list[chosenRowIndex])))
-            # print('booleanArray row len: ' + str(len(booleanArray)))
-            # print ("booleanArray: ")
-            # print (booleanArray)
-            # print ("chosen Row: ")
-            # print(chosenRowIndex)
-            # print (overall_point_list[chosenRowIndex])
-            # self.wall_drawer(booleanArray, overall_point_list[chosenRowIndex])
-            # fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-            # # print('FIXED: ' + str(fixedchosenRow))
-            # print('Sum vector: ' + str(self.calculate_sum_vector(fixedchosenRow)))
+            angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall, vehicle_name, lidar_names)
+            print("Turning angle: " + str(angleInDegree))
+            self.client.rotateToYawAsync(angleInDegree, timeout_sec=30, margin=0.1, vehicle_name=vehicle_name).join()
+
             startTime = time.time()
             while((time.time() - startTime) <= 100):
                 try:
                     overall_point_list = self.scan(vehicle_name,lidar_names)
                     chosenRowIndex = self.chooseRow(overall_point_list)
                     fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-                    print('following vector')
-                    self.follow_vector(self.calculate_sum_vector(fixedchosenRow), 5, vehicle_name)
-                    vectorfromwall = self.vector_from_wall(self.calculate_sum_vector(fixedchosenRow))       
-                    angleInRad = self.angle_from_drone_to_vector(vectorfromwall, vehicle_name, lidar_names)                   
-                    # self.client.rotateToYawAsync(angleInRad, timeout_sec=0.5, margin=0.1, vehicle_name=vehicle_name)
+                    filtered_row = self.view_distance_filter(5, fixedchosenRow)
+
+                    if (filtered_row == []):
+                        print("No wall in view")
+                        self.turnTowardsGoalSynchronous(vehicle_name,lidar_names)
+                        self.approach(vehicle_name, lidar_names)
+                    else:
+                        print('following vector')
+                        self.follow_vector(self.calculate_object_sum_vector(filtered_row), 5, vehicle_name)
+                        vectorfromwall = self.vector_from_wall(self.calculate_object_sum_vector(fixedchosenRow))
+                        print("Vector from wall: " + str(vectorfromwall))   
+                        angleInDegree = self.angle_from_drone_to_vector(vectorfromwall, vehicle_name, lidar_names)[1]
+                        print("Wall turning angle: " + str(angleInDegree))
+                        self.client.rotateToYawAsync(angleInDegree, timeout_sec=0.5, margin=0.1, vehicle_name=vehicle_name)
+                    
                 except KeyboardInterrupt:
                     lidarTest.stop()
                     break
 
-            
-
-                
-            
-            
-            
-            #while Armed == True:
-            #     #move to goal
-            #     overall_point_list = self.scan(vehicle_name,lidar_names)
-            #     angleToGoal = self.turnTowardsGoal(vehicle_name, lidar_names) # completely faces goal
-            #     if (self.checkForCollision(overall_point_list) == False):
-            #         self.goForward() #go forward until collision
-            #     # if collision event
-            #     #self.turnTowardsGoalSynchronous(vehicle_name, lidar_names)
-            #     thetaOffset = 0
-            #     while(self.checkForCollision(self.scan(vehicle_name, lidar_names)) == True):
-            #         self.client.rotateToYawAsync(angleToGoal + thetaOffset, timeout_sec=0.1, margin=0.1, vehicle_name=vehicle_name)
-            #         thetaOffset = thetaOffset + 0.2
                 
 
         except KeyboardInterrupt:
@@ -626,7 +717,7 @@ if __name__ == "__main__":
     vehicle_name,lidar_names = 'Drone1',['LidarSensor1']
   
     args = arg_parser.parse_args(args) 
-    lidarTest = LidarTest()
+    lidarTest = ObstacleAvoidance()
     try:
         lidarTest.execute(vehicle_name,lidar_names)
     except KeyboardInterrupt:
