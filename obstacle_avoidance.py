@@ -157,8 +157,7 @@ class ObstacleAvoidance(Process):
                 # print("\tNo points received from Lidar data")
                 xVelocity = 0.0 
                 zVelocity = 0.0
-            # Intended to Unrotate after a rotation was completed to avoid collision.
-            # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
+                
         else:
                 # Divides the lidarData into 3 seperate variables for x, y and z
                 y_points_last = 0
