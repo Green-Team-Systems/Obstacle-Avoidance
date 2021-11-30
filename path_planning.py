@@ -349,9 +349,9 @@ class PathPlanning(Process):
                             )
 
     def calculate_velocities(self,target_pos, current_pos):
-        kP = 0.3
-        kI = 0.01
-        kD = 0.01
+        kP = 0.4
+        kI = 0.00
+        kD = 0.05
         # print(target_pos.Z, current_pos.Z)
         x_error = target_pos.X - current_pos.X
         y_error = target_pos.Y - current_pos.Y
@@ -394,9 +394,9 @@ class PathPlanning(Process):
     def apply_velocity_constraints(self, speed, z_val=False):
         # These constraints need to be read from a settings file
         if not z_val and speed > 20:
-            speed = speed
+            speed = 20
         elif z_val and speed < -20.0:
-            speed = -speed
+            speed = -20
         return speed
 
     def move_to_next_position(self, command: MovementCommand) -> bool:
@@ -428,8 +428,6 @@ class PathPlanning(Process):
                 command.position,
                 position
             )
-            if abs(z_Vel - self.last_velocities.vz) > 10 and self.last_command == "velocity":
-                z_Vel = self.last_velocities.vz
 
             heading = command.heading
             self.log.info("{}|{}|velocities|{}".format(
@@ -444,14 +442,14 @@ class PathPlanning(Process):
         elif command.move_by == "velocity":
             x_Vel = self.last_velocities.vx
             y_Vel = self.last_velocities.vy
-            z_Vel = command.velocity.vz
+            z_Vel = self.last_velocities.vz + command.velocity.vz
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
                 "VZ": z_Vel,
             }
             heading = self.last_command.heading
-            self.last_velocities.vz = z_Vel
+            # self.last_velocities.vz = z_Vel
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,
