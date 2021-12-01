@@ -520,7 +520,9 @@ class ObstacleAvoidance:
     def follow_vector(self, vector, velocity):
         
         #follow parallel to obstacle (strafe)
-        self.client.moveToPositionAsync(vector[0], vector[1], 0, velocity, 0.5, vehicle_name=self.vehicle_name)
+        #self.client.moveToPositionAsync(vector[0], vector[1], 0, velocity, 0.5, vehicle_name=self.vehicle_name)
+        #self.client.moveByVelocityAsync
+        self.client.moveByVelocityBodyFrameAsync(vector[0], vector[1], 0, 0.3)
         # self.client.moveByVelocityAsync(vector[0], vector[1], vector[2]
 
         return
@@ -583,9 +585,9 @@ class ObstacleAvoidance:
 
     def vector_45_from_wall(self, wall_vector):
         #rotates vector by 45 degrees
-        x_component = (math.cos(math.sqrt(2)/2) * wall_vector[0]) - (math.sin(math.sqrt(2)/2) * wall_vector[1])
+        x_component = float(-1) * (math.cos(math.sqrt(2)/2) * wall_vector[0]) - (math.sin(math.sqrt(2)/2) * wall_vector[1])
         
-        y_component = float(-1) * (math.sin(math.sqrt(2)/2) * wall_vector[0]) + (math.cos(math.sqrt(2)/2)* wall_vector[1])
+        y_component = (math.sin(math.sqrt(2)/2) * wall_vector[0]) + (math.cos(math.sqrt(2)/2)* wall_vector[1])
         offwallvector = [x_component, y_component]
         return offwallvector
 
@@ -660,7 +662,8 @@ class ObstacleAvoidance:
         modOfVector1 = math.sqrt( a*a + b*b)*math.sqrt(c*c + d*d) 
             # for three dimensional simply add modOfVector = math.sqrt( a*a + b*b + e*e)*math.sqrt(c*c + d*d +f*f) 
         
-        
+        if (modOfVector1 == 0):
+            return 0
 
         angle = dotProduct/modOfVector1
         #  print("Cosθ =",angle)
@@ -694,13 +697,15 @@ class ObstacleAvoidance:
         sum_vector = self.calculate_object_sum_vector(fixedchosenRow)
         print(f"Sum vector: {type(sum_vector)}")
         norm_sum_vector = self.normalize_vector(sum_vector)
+        if(norm_sum_vector is [0,0]):
+            return
         print(f"Norm vector: {type(norm_sum_vector)}")
         vectorfromwall = self.vector_45_from_wall(norm_sum_vector)
         print("Vector from wall: " + str(vectorfromwall))
         # get angle from drone to wall vector
         angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
         print("Turning angle: " + str(angleInDegree))
-        #self.client.rotateToYawAsync(angleInDegree, timeout_sec=30, margin=0.1, vehicle_name=self.vehicle_name)
+        # self.client.rotateToYawAsync(angleInDegree, timeout_sec=30, margin=0.1, vehicle_name=self.vehicle_name)
         self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
         self.follow_vector(norm_sum_vector, 5)
 
