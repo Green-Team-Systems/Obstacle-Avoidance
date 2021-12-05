@@ -176,9 +176,9 @@ class LidarTest:
                         new_list = ['xj', mid_row[i-1][0], mid_row[i-1][1]]
                         points_list.append(new_list)
                     elif xChange < -5 and mid_row[i][0] > 5:
-                            new_list = ['xd', mid_row[i][0], mid_row[i][1], 
-                                mid_row[i-1][0], mid_row[i-1][1]]
-                            points_list.append(new_list)
+                        new_list = ['xd', mid_row[i][0], mid_row[i][1], 
+                            mid_row[i-1][0], mid_row[i-1][1]]
+                        points_list.append(new_list)
 
                 print(f'Point List: {points_list}')
 
