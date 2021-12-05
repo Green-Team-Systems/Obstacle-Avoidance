@@ -24,6 +24,24 @@ class LidarTest:
         self.client.confirmConnection()
         self.client.enableApiControl(True)
 
+    def get_critical_points(self, data):
+        mid_row = data[data.length() / 2]
+        points_list = []
+
+        for i in range(1, mid_row.length(), 1):
+            yChange = mid_row[i][1] - mid_row[i-1][1]
+            # creates a y_drop point
+            if yChange > 1:
+                new_list = {'yd', mid_row[i-1][0], mid_row[i-1][1], mid_row[i][0], mid_row[i][1]}
+                points_list.append(new_list)
+
+        file = open('critical_points.txt', 'w')
+        for j in range(0, len(points_list)):
+            file.write('Values: ' + str(points_list[i]) + '\n')
+        file.close()
+
+        return points_list
+
     def slopeCalculation(self, lidarData, droneVelocity):
     # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
         if (len(lidarData) < 3):
@@ -46,6 +64,13 @@ class LidarTest:
                     next_row.append(xyz)
                     #f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
                     y_points_last = xyz[1]
+
+                # print('Column Length', len(overall_point_list[1]))
+                # file = open('lidarValues.txt', 'w')
+                # for j in range(0, len(overall_point_list[1])):
+                #     file.write('Values: ' + str(overall_point_list[1][j]) + '\n')
+                # file.close()
+
                 try: 
                     
                     midpoint_top_level = int(len(overall_point_list[1]) / 2)
@@ -91,7 +116,7 @@ class LidarTest:
         xCord = 400 # meters
         yCord = 0 # meters
         zCord = 0 # meters
-        droneVelocity = 10 # meters / second
+        droneVelocity = 0 # meters / second
         rotation = 0.0 # TODO Fifgure this out
         print("arming the drone...")
         self.client.armDisarm(True)
@@ -117,14 +142,13 @@ class LidarTest:
         #time.sleep(10)
         
         # f = open('airsimdata.txt', 'w')
-
-        while 1:
+        for w in range(1, 20):
 
             # lidar_data and data both need to be placed in a while loop along with function defination to make sure it works :) 
             lidar_data = self.client.getLidarData()  
             data = lidar_data.point_cloud
 
-            xVelocity, zVelocity = self.slopeCalculation(data, 10) #takes the data as one parameter and 10 is drone speed user inputs
+            xVelocity, zVelocity = self.slopeCalculation(data, 0) #takes the data as one parameter and 10 is drone speed user inputs
             
             self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 10) 
             time.sleep(0.01)
@@ -154,7 +178,7 @@ class LidarTest:
 # main
 if __name__ == "__main__":
     args = sys.argv
-    args.pop(0)
+    args.pop(0) 
     arg_parser = argparse.ArgumentParser("Lidar.py makes drone fly and gets Lidar data")
 
     arg_parser.add_argument('-save-to-disk', type=bool, help="save Lidar data to disk", default=False)
