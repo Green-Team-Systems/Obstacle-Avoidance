@@ -186,7 +186,10 @@ class LidarTest:
                     noSpace = True
                     i = 0
 
+                    # determine velocities based off of critical points
+                    # TODO find path to destination
                     while noSpace:
+                        # sets target to midpoint for y-drop
                         if points_list[i][0] == 'yd':
                             x_target = (points_list[i][3] + points_list[i][1]) / 2
                             y_target = (points_list[i][4] + points_list[i][2]) / 2
@@ -198,6 +201,7 @@ class LidarTest:
                                 xVelocity, yVelocity = self.calculate_velocities(x_target, y_target)
                             noSpace = False
 
+                        # shifts target 2 meters to the right for x-jump
                         elif points_list[i][0] == 'xj':
                             x_target = points_list[i][1]
                             y_target = points_list[i][2] + 2
@@ -208,6 +212,7 @@ class LidarTest:
                                 xVelocity, yVelocity = self.calculate_velocities(x_target, y_target)
                             noSpace = False
 
+                        # shifts target 2 meters to the left for x-drop
                         elif points_list[i][0] == 'xd':
                             x_target = points_list[i][1]
                             y_target = points_list[i][2] - 2
@@ -218,18 +223,21 @@ class LidarTest:
                                 xVelocity, yVelocity = self.calculate_velocities(x_target, y_target)
                             noSpace = False
 
+                        # sets velocities to 0 if there is no path, eventually
+                        # will call Josh's code or slope code to trace the wall
                         else:
                             xVelocity, yVelocity = 0, 0
                             noSpace = False
 
                         i += 1
 
-
+                    # prints velocities and targets
                     print(f'X speed: {xVelocity}')
                     print(f'Y speed: {yVelocity}')
                     print(f'X target: {x_target}')
                     print(f'Y target: {y_target}')
 
+                # runs if points_list is empty
                 except Exception:
                     xVelocity = self.droneVelocity
                     yVelocity = 0
