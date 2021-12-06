@@ -27,9 +27,7 @@ from utils.position_utils import position_to_list
 if __name__ == "__main__":
 
     FORMAT = '%(asctime)-15s %(message)s'
-    logging.basicConfig(filename='logs/root.log',
-                    level=logging.INFO,
-                    format=FORMAT)
+    
     drone_id = "Drone1"
     path_planning_queue = Queue()
     dist_threshold = 5.0 # meters
