@@ -349,10 +349,11 @@ class PathPlanning(Process):
                             )
 
     def calculate_velocities(self,target_pos, current_pos):
+        """Simple PID Controller to make the process of giving postions and converting 
+        to velocities simple and with out to many jerks"""
         kP = 0.4
         kI = 0.00
         kD = 0.05
-        # print(target_pos.Z, current_pos.Z)
         x_error = target_pos.X - current_pos.X
         y_error = target_pos.Y - current_pos.Y
         z_error = -1 * (target_pos.Z - current_pos.Z)
@@ -393,6 +394,7 @@ class PathPlanning(Process):
     
     def apply_velocity_constraints(self, speed, z_val=False):
         # These constraints need to be read from a settings file
+        """Constraints for PID so drone doesn't go super saiyan"""
         if not z_val and speed > 20:
             speed = 20
         elif z_val and speed < -20.0:
@@ -449,7 +451,6 @@ class PathPlanning(Process):
                 "VZ": z_Vel,
             }
             heading = self.last_command.heading
-            # self.last_velocities.vz = z_Vel
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,
