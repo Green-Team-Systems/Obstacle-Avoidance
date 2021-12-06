@@ -159,8 +159,10 @@ class LidarTest:
                             z_level_row = mid_point_z
                             index = row_index
 
-
-                mid_row = overall_point_list[index]
+                try:
+                    mid_row = overall_point_list[index]
+                except Exception:
+                    mid_row = []
                 points_list = list()
 
                 # find critical points
@@ -176,8 +178,7 @@ class LidarTest:
                         new_list = ['xj', mid_row[i-1][0], mid_row[i-1][1]]
                         points_list.append(new_list)
                     elif xChange < -5 and mid_row[i][0] > 5:
-                        new_list = ['xd', mid_row[i][0], mid_row[i][1], 
-                            mid_row[i-1][0], mid_row[i-1][1]]
+                        new_list = ['xd', mid_row[i][0], mid_row[i][1]]
                         points_list.append(new_list)
 
                 print(f'Point List: {points_list}')
@@ -187,7 +188,7 @@ class LidarTest:
                     i = 0
 
                     # determine velocities based off of critical points
-                    # TODO find path to destination
+                    # find path to destination
                     while noSpace:
                         # sets target to midpoint for y-drop
                         if points_list[i][0] == 'yd':
@@ -239,8 +240,9 @@ class LidarTest:
 
                 # runs if points_list is empty
                 except Exception:
-                    xVelocity = self.droneVelocity
+                    xVelocity = 5 
                     yVelocity = 0
+                    print('exception')
 
         return xVelocity, yVelocity
 
