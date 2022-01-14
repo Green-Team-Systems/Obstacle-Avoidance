@@ -270,7 +270,7 @@ class LidarTest:
         # Move the drone to the coordinates initialized above
         # MovetoPosition will use Airsim Path Planning while moveByVelocity will not, i.e. moveByVelocity will be less jumpy.
         # self.client.moveByVelocityAsync(xCord, yCord, zCord, droneVelocity)
-        #self.client.moveToPositionAsync(0, 5, 0, 5).join()
+        # self.client.moveToPositionAsync(0, 5, 0, 5).join()
 
         self.client.hoverAsync().join()
 
@@ -284,7 +284,7 @@ class LidarTest:
             lidar_data = self.client.getLidarData()
             data = lidar_data.point_cloud
 
-            x_vel, y_vel = self.detectCorners(data) #takes the data as one parameter and 10 is drone speed user inputs
+            x_vel, y_vel = self.detectCorners(data) # takes the data as one parameter and 10 is drone speed user inputs
 
             self.client.moveByVelocityAsync(x_vel, y_vel, 0, math.inf)
             time.sleep(0.01)
