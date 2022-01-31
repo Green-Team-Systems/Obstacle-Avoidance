@@ -465,30 +465,7 @@ class ObstacleAvoidance:
         #y = slope * x + firstpoint[1]  
         return slope
 
-    # """
-    # Description:
-    
-    # Inputs:
-    
-    # Outputs:
-    
-    # Notes:
 
-    # """        
-    # def estimate_object_vector(self, fixed_row):
-    #     #find left-most chunk of points between gaps
-
-    #     first_point = fixed_row[0]
-    #     last_point = fixed_row[0]
-    #     for ind, point in enumerate(fixed_row):
-    #         #this will break if a G is at the start of the row
-    #         if point == 'G':
-    #             last_point = fixed_row[ind - 1]
-    #             break
-    #         last_point = fixed_row[ind]
-        
-    #     vector = ((last_point[0] - first_point[0]), (last_point[1] - first_point[1]))
-    #     return vector
 
     """
     Description: Calculate the sum of the vectors from left to right
@@ -718,19 +695,7 @@ class ObstacleAvoidance:
         # print('going forward')
         self.client.moveByVelocityBodyFrameAsync(3, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, goalAngle))
 
-
-
-
-    """
-    Description:
-    
-    Inputs:
-    
-    Outputs:
-    
-    Notes:
-
-    """
+    # Main execution loop for mode switch and drone movement
     def execute(self):
         print("arming the drone...")
         
@@ -739,7 +704,6 @@ class ObstacleAvoidance:
         self.takeoff()  
         
         airsim.wait_key('Press any key to move vehicle to (-10, 10, -10) at 5 m/s')
-        # self.client.moveToPositionAsync(20, 0, 0, 5).join()
         self.client.moveToPositionAsync(0, 0, -1, 5).join()
 
         print('Scanning Has Started\n')
@@ -780,31 +744,6 @@ class ObstacleAvoidance:
                 elif self.mode == "AVOID":
                     self.avoid()
 
-                #check for obstacles
-                # #if mode == "FORWARD" and there are obstacles:
-                # mode = "AVOID"
-                # if(filtered_row != [] and self.mode == self.STATES["Clear"]):
-                #     # self.mode = "AVOID"
-                #     #self.mode = self.STATES["Obstacle"]
-                # # elif mode == "Avoid" and no obstacles:
-                # # mode = "FORWARD"
-                # elif(filtered_row == [] and self.mode == "AVOID"):
-                #     # self.mode = "GOTOGOAL"
-                #     self.mode = self.STATES["Clear"]
-                
-                # # if mode == "FORWARD":
-                # #     send move to goal by position command
-                # if self.mode == "GOTOGOAL":
-                #     self.moveToGoal()
-                
-                # # elif mode == "Avoid":
-                # #     run avoidance strategy
-                # elif self.mode == "Avoid":
-                #     self.avoid(filtered_row)
-                
-                # check if at goal
-                # at_Goal = self.checkIfAtGoal()
-
             # arrived at goal
             self.stopDrone()
             print('Reached Goal')
@@ -812,58 +751,7 @@ class ObstacleAvoidance:
         except KeyboardInterrupt:
             self.stop()
                 
-            
 
-        # try:
-        #     self.goTowardsGoal
-        #     self.turnTowardsGoalSynchronous(self.vehicle_name,self.lidar_names)
-        #     #approach to within 5 meters of wall
-        #     self.approach(self.vehicle_name, self.lidar_names)
-        #     #turn lidar data into list
-        #     overall_point_list = self.scan(self.vehicle_name,self.lidar_names)
-        #     #choose the row nearest to z = 0 (relative to drone)
-        #     chosenRowIndex = self.chooseRow(overall_point_list)
-        #     #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-        #     fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-            
-        #     filtered_row = self.view_distance_filter(5, fixedchosenRow)
-
-        #     # get vector 45 degrees from wall 
-        #     vectorfromwall = self.vector_from_wall(self.calculate_object_sum_vector(filtered_row))
-        #     print("Vector from wall: " + str(vectorfromwall))
-        #     # get angle from drone to wall vector
-        #     angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall, self.vehicle_name, self.lidar_names)
-        #     print("Turning angle: " + str(angleInDegree))
-        #     self.client.rotateToYawAsync(angleInDegree, timeout_sec=30, margin=0.1, self.vehicle_name=self.vehicle_name).join()
-
-        #     while((time.time() - startTime) <= 100):
-        #         try:
-        #             overall_point_list = self.scan(self.vehicle_name,self.lidar_names)
-        #             chosenRowIndex = self.chooseRow(overall_point_list)
-        #             fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-        #             filtered_row = self.view_distance_filter(5, fixedchosenRow)
-                    
-        #             if (filtered_row == []):
-        #                 print("No wall in view")
-        #                 self.turnTowardsGoalSynchronous(self.vehicle_name,self.lidar_names)
-        #                 self.approach(self.vehicle_name, self.lidar_names)
-        #             else:
-        #                 print('following vector')
-        #                 self.follow_vector(self.calculate_object_sum_vector(filtered_row), 5, self.vehicle_name)
-        #                 vectorfromwall = self.vector_from_wall(self.calculate_object_sum_vector(fixedchosenRow))
-        #                 print("Vector from wall: " + str(vectorfromwall))   
-        #                 angleInDegree = self.angle_from_drone_to_vector(vectorfromwall, self.vehicle_name, self.lidar_names)[1]
-        #                 print("Wall turning angle: " + str(angleInDegree))
-        #                 self.client.rotateToYawAsync(angleInDegree, timeout_sec=0.5, margin=0.1, self.vehicle_name=self.vehicle_name)
-                    
-        #         except KeyboardInterrupt:
-        #             lidarTest.stop()
-        #             break
-
-                
-
-        # except KeyboardInterrupt:
-        #     self.stop()
 
                 
 if __name__ == "__main__":
