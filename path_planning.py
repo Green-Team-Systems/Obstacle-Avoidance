@@ -307,7 +307,9 @@ class PathPlanning(Process):
                     try:
                         assert isinstance(command, MovementCommand)
                         
-                        self.move_to_next_position(command)
+                        if(self.check_for_new_command(command) == True):
+                            startTime = datetime.utcnow()
+                        self.move_to_next_position(command, startTime)
                         # TODO Send back message on command completion
                         self.log.info(
                             "{}|{}|commanded_position_completed|{}".format(
@@ -348,17 +350,22 @@ class PathPlanning(Process):
                                 )
                             )
 
-    def calculate_velocities(self,target_pos, current_pos):
-        """Simple PID Controller to make the process of giving postions and converting 
-        to velocities simple and with out to many jerks"""
-        kP = 0.4
-        kI = 0.00
-        kD = 0.05
+    def calculate_velocities(self,target_pos, current_pos, command, startTime):
+        kP = 0.3
+        kI = 0.01
+        kD = 0.01
+        vMax = 20 
+        jMax = 25
+        # print(target_pos.Z, current_pos.Z)
         x_error = target_pos.X - current_pos.X
         y_error = target_pos.Y - current_pos.Y
         z_error = -1 * (target_pos.Z - current_pos.Z)
 
+        # if(self.check_for_new_command(command) == True):
+        #     startTime = datetime.utcnow()
+        #     print(startTime)
         now = datetime.utcnow()
+        slew = (now - startTime).total_seconds()
         dt = (now - self.previous_time).total_seconds()
         self.previous_time = now
 
@@ -371,15 +378,16 @@ class PathPlanning(Process):
         z_integral = (self.integral_error["Z"] + z_error) * dt
 
         x_vel = (((x_error) * (kP))
-                 + ((x_derivative) * (kD))
-                 + ((x_integral) * (kI)))
+                + ((x_derivative) * (kD))
+                + ((x_integral) * (kI)))
         y_vel = (((y_error) * (kP))
-                 + ((y_derivative) * (kD))
-                 + ((y_integral) * (kI)))
+                + ((y_derivative) * (kD))
+                + ((y_integral) * (kI)))
         z_vel = -1 * (((z_error) * (kP))
-                      + ((z_derivative) * (kD))
-                      + ((z_integral) * (kI)))
-
+                    + ((z_derivative) * (kD))
+                    + ((z_integral) * (kI)))
+        
+        x_vel = self.slew(vMax, jMax, slew, x_vel)
         x_vel = self.apply_velocity_constraints(x_vel)
         y_vel = self.apply_velocity_constraints(y_vel)
         z_vel = self.apply_velocity_constraints(z_vel, z_val=True)
@@ -392,16 +400,30 @@ class PathPlanning(Process):
 
         return x_vel, y_vel, z_vel
     
+    def slew(self, vMax, jMax, now, currentVel):
+        inflectionTime = m.sqrt(vMax / jMax)
+        totalTime = inflectionTime * 2 
+        vInflection = vMax / 2
+        aMax = (totalTime * jMax) / 2
+        if(now < inflectionTime):
+            velocity = (jMax * m.pow(now, 2)) / 2
+            print(f"velocity : {velocity}")
+        elif(now <= totalTime and now >= inflectionTime):
+            velocity = vInflection + (aMax * (now - totalTime)) - ((jMax * pow((now - totalTime), 2)) / 2)
+            print(f"velocity : {velocity}")
+        else:
+            velocity = currentVel
+        return velocity
+
     def apply_velocity_constraints(self, speed, z_val=False):
         # These constraints need to be read from a settings file
-        """Constraints for PID so drone doesn't go super saiyan"""
         if not z_val and speed > 20:
-            speed = 20
+            speed = speed
         elif z_val and speed < -20.0:
-            speed = -20
+            speed = -speed
         return speed
 
-    def move_to_next_position(self, command: MovementCommand) -> bool:
+    def move_to_next_position(self, command: MovementCommand, startTime) -> bool:
         """
         Given a MovementCommand, send the appropriate AirSim API call
         to move the vehicle in the next direction.
@@ -428,8 +450,12 @@ class PathPlanning(Process):
             )
             x_Vel, y_Vel, z_Vel = self.calculate_velocities(
                 command.position,
-                position
+                position,
+                command, 
+                startTime
             )
+            if abs(z_Vel - self.last_velocities.vz) > 10 and self.last_command == "velocity":
+                z_Vel = self.last_velocities.vz
 
             heading = command.heading
             self.log.info("{}|{}|velocities|{}".format(
@@ -444,13 +470,14 @@ class PathPlanning(Process):
         elif command.move_by == "velocity":
             x_Vel = self.last_velocities.vx
             y_Vel = self.last_velocities.vy
-            z_Vel = self.last_velocities.vz + command.velocity.vz
+            z_Vel = command.velocity.vz
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
                 "VZ": z_Vel,
             }
             heading = self.last_command.heading
+            self.last_velocities.vz = z_Vel
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,
@@ -460,3 +487,4 @@ class PathPlanning(Process):
                 vehicle_name=self.drone_id
             )
         return True
+
