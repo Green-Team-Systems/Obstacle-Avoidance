@@ -169,15 +169,17 @@ class LidarTest:
                 for i in range(1, len(mid_row)):
                     yChange = mid_row[i][1] - mid_row[i-1][1]
                     xChange = mid_row[i][0] - mid_row[i-1][0]
+                    zVal = ((mid_row[i][2] + mid_row[i-1][2]) / 2)
+                    zBool = zVal > -3 and zVal < 3
 
-                    if abs(yChange) > 2 and abs(xChange) < 10:
+                    if abs(yChange) > 2 and abs(xChange) < 10 and zBool:
                         new_list = ['yd', mid_row[i-1][0], mid_row[i-1][1],
                             mid_row[i][0], mid_row[i][1]]
                         points_list.append(new_list)
-                    elif xChange > 5 and mid_row[i-1][0] > 5:
+                    elif xChange > 5 and mid_row[i-1][0] > 5 and zBool:
                         new_list = ['xj', mid_row[i-1][0], mid_row[i-1][1]]
                         points_list.append(new_list)
-                    elif xChange < -5 and mid_row[i][0] > 5:
+                    elif xChange < -5 and mid_row[i][0] > 5 and zBool:
                         new_list = ['xd', mid_row[i][0], mid_row[i][1]]
                         points_list.append(new_list)
 
@@ -192,7 +194,7 @@ class LidarTest:
                     while noSpace:
                         # sets target to midpoint for y-drop
                         if points_list[i][0] == 'yd':
-                            x_target = (points_list[i][3] + points_list[i][1]) / 2
+                            x_target = ((points_list[i][3] + points_list[i][1]) / 2) - 5
                             y_target = (points_list[i][4] + points_list[i][2]) / 2
                             width = abs(points_list[i][3] - points_list[i][1])
                             if abs(y_target) < 0.5 and width > 2:
