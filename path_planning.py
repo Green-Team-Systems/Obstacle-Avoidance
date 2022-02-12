@@ -387,7 +387,7 @@ class PathPlanning(Process):
                     + ((z_derivative) * (kD))
                     + ((z_integral) * (kI)))
         
-        x_vel = self.slew(vMax, jMax, slew, x_vel)
+        # x_vel = self.slew(vMax, jMax, slew, x_vel)
         x_vel = self.apply_velocity_constraints(x_vel)
         y_vel = self.apply_velocity_constraints(y_vel)
         z_vel = self.apply_velocity_constraints(z_vel, z_val=True)
