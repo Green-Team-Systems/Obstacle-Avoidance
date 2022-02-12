@@ -31,7 +31,7 @@ if __name__ == "__main__":
                     level=logging.INFO,
                     format=FORMAT)
     drone_id = "Drone1"
-    path_planning_queue = Queue()
+    path_planning_queue = Queue(20)
     dist_threshold = 5.0 # meters
 
     airsim_client = airsim.MultirotorClient()

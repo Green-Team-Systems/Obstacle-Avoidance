@@ -113,12 +113,12 @@ class ObstacleAvoidance(Process):
     def start(self):
         Process.start(self)
     
-    def run(self):
+    def run(self): 
         Process.run(self)
         killer = GracefulKiller()
         if self.simulation:
             self.build_airsim_client()
-        while not self.takeoff_completed:
+        while not self.takeoff_completed: 
             try:
                 message = self.path_planning_queue.get(block=False)
                 if message == "Takeoff Completed":
@@ -128,10 +128,10 @@ class ObstacleAvoidance(Process):
                 pass
         try:
             while not killer.kill_now:
-                lidar_data = self.airsim_client.getLidarData()
+                lidar_data = self.airsim_client.getLidarData() 
                 data = lidar_data.point_cloud
-                x_vel, z_vel = self.slopeCalculation(data, 10.0)
-                if not z_vel == 0.0:
+                x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
+                if not z_vel == 0.0: #slope caclulation returns 0 value when no points are deteced or the z value is to low so if statment to make sure not to call that command if z = 0
                     self.log.info(
                             "{}|{}|vel_command|{}".format(
                                 datetime.utcnow(),
@@ -142,9 +142,9 @@ class ObstacleAvoidance(Process):
                     command = MovementCommand(
                         velocity=VelVec3(
                             vx=x_vel,
-                            vz=-1 * z_vel
+                            vz=-1 * z_vel # remeber that z is in ned corrdinate system so we have to inverse the speed of z velocity 
                         ),
-                        move_by="velocity"
+                        move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
                     )
                     self.path_planning_queue.put(command)
                 time.sleep(0.01)
@@ -157,8 +157,7 @@ class ObstacleAvoidance(Process):
                 # print("\tNo points received from Lidar data")
                 xVelocity = 0.0 
                 zVelocity = 0.0
-            # Intended to Unrotate after a rotation was completed to avoid collision.
-            # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
+                
         else:
                 # Divides the lidarData into 3 seperate variables for x, y and z
                 y_points_last = 0
@@ -167,38 +166,33 @@ class ObstacleAvoidance(Process):
                 next_row = list()
                 for i in range(0, length, 3):
                     xyz = lidarData[i:i+3]
-                    if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
-                        overall_point_list.append(next_row)
+                    #In the lidar data there is a pattern how it switches from line so the values go from positvie to negative so if statement checks for those senarios
+                    if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)): 
+                        overall_point_list.append(next_row) #adds data to the list
                         next_row = list()
                     next_row.append(xyz)
-                    #f.write("%f %f %f\n" % (xyz[0],xyz[1],-xyz[2]))
                     y_points_last = xyz[1]
                 try: 
                     
-                    midpoint_top_level = int(len(overall_point_list[1]) / 2)
+                    midpoint_top_level = int(len(overall_point_list[1]) / 2) # Calculates what the top middle collumn value is
                     x2_distance = overall_point_list[1][midpoint_top_level][0]
                     z2_distance = -overall_point_list[1][midpoint_top_level][2]
 
                     bottom_level_point = len(overall_point_list) - 1
-                    midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
+                    midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2) #  Calculates what the bottom middle collumn value is
                     x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
                     z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
 
-                    x_distance = math.fabs(x2_distance - x1_distance)
-                    z_distance = math.fabs(z2_distance - z1_distance)
+                    x_distance = math.fabs(x2_distance - x1_distance) #calculates distance from respective points
+                    z_distance = z2_distance - z1_distance
 
                     hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
                     zVelocity = (z_distance / hypo)
-                    xVelocity = (x_distance / hypo)
+                    xVelocity = (x_distance / hypo) # Creates a unit vector to add on to velocity so user can control the speed the drone goes
                     zVelocity = zVelocity * droneVelocity
                     xVelocity = xVelocity * droneVelocity
 
-                    print(f'Z speed: {zVelocity}')
-                    print(f'X speed: {xVelocity}')
-                    # print(f'X distance: {x_distance}')
-                    # print(f'Z distance: {z_distance}')
-
-                except Exception:
+                except Exception: # Throws an exception if no lidar points are detecte ie there is no obstacle to detect
                     xVelocity = 0.0 
                     zVelocity = 0.0
-        return xVelocity, zVelocity
+        return xVelocity, zVelocity # Returns the x and z velocity for it ti be used
