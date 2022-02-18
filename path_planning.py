@@ -187,7 +187,7 @@ class PathPlanning(Process):
         ## Outputs:
         Boolean of whether this is a new command or not
         """
-        if self.last_command == None:
+        if self.last_command is None:
             return True
 
         if (command.position.X == self.last_command.position.X

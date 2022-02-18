@@ -54,7 +54,7 @@ fps = 0
 while True:
     # because this method returns std::vector<uint8>, msgpack decides to encode it as a string unfortunately.
     rawImage = client.simGetImage("0", cameraTypeMap[cameraType])
-    if (rawImage == None):
+    if (rawImage is None):
         print("Camera is not returning image, please check airsim for error messages")
         sys.exit(0)
     else:
