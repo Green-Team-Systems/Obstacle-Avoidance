@@ -15,7 +15,7 @@ import math as m
 import numpy as np
 import logging
 
-from multiprocessing import Queue
+from multiprocessing import Queue, freeze_support
 
 from obstacle_avoidance import ObstacleAvoidance
 from path_planning import PathPlanning
@@ -25,6 +25,8 @@ from utils.position_utils import position_to_list
 
 
 if __name__ == "__main__":
+
+    freeze_support()
 
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(filename='logs/root.log',
