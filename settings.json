@@ -29,22 +29,78 @@
           "HorizontalFOVEnd": 20,
           "DrawDebugPoints": false,
           "DataFrame": "SensorLocalFrame"
-        },
-        "Balls": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": -90, "Roll": 0,
-          "DrawDebugPoints": true
-        },   
-        "Cock": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": 0, "Roll": 0,
-          "DrawDebugPoints": true
-        }   
+        }
       },
       "X": 0,
       "Y": 0,
+      "Z": -1,
+      "Pitch": 0,
+      "Roll": 0,
+      "Yaw": 0
+    },
+    "Drone2": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisionPassthrogh": false,
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 100000,
+          "X": 0,
+          "Y": 0,
+          "Z": -1,
+          "Roll": 0,
+          "Pitch": 0,
+          "Yaw": 0,
+          "VerticalFOVUpper": -15,
+          "VerticalFOVLower": -25,
+          "HorizontalFOVStart": -20,
+          "HorizontalFOVEnd": 20,
+          "DrawDebugPoints": false,
+          "DataFrame": "SensorLocalFrame"
+        }
+      },
+      "X": -2,
+      "Y": -2,
+      "Z": -1,
+      "Pitch": 0,
+      "Roll": 0,
+      "Yaw": 0
+    },
+    "Drone3": {
+      "VehicleType": "SimpleFlight",
+      "DefaultVehicleState": "Armed",
+      "EnableCollisionPassthrogh": false,
+      "EnableCollisions": true,
+      "AllowAPIAlways": true,
+      "Sensors": {
+        "LidarSensor1": {
+          "SensorType": 6,
+          "Enabled": true,
+          "NumberOfChannels": 16,
+          "RotationsPerSecond": 10,
+          "PointsPerSecond": 100000,
+          "X": 0,
+          "Y": 0,
+          "Z": -1,
+          "Roll": 0,
+          "Pitch": 0,
+          "Yaw": 0,
+          "VerticalFOVUpper": -15,
+          "VerticalFOVLower": -25,
+          "HorizontalFOVStart": -20,
+          "HorizontalFOVEnd": 20,
+          "DrawDebugPoints": false,
+          "DataFrame": "SensorLocalFrame"
+        }
+      },
+      "X": -2,
+      "Y": 2,
       "Z": -1,
       "Pitch": 0,
       "Roll": 0,

@@ -8,6 +8,7 @@
 # =============================================================================
 
 from os import X_OK
+import traceback
 import setup_path
 import airsim
 import logging
@@ -17,7 +18,7 @@ import numpy as np
 import math as m
 import json
 
-from multiprocessing import Process, freeze_support
+from multiprocessing import Process
 from datetime import datetime
 from multiprocessing.queues import Empty
 
@@ -45,7 +46,6 @@ class PathPlanning(Process):
     """
 
     def __init__(self, queue, drone_id, user_options=None, simulation=False):
-        freeze_support()
         Process.__init__(self, daemon=True)
         # This is a section of the global map defined by some radius
         # from the drone
@@ -81,6 +81,7 @@ class PathPlanning(Process):
                 "VY": 0.0,
                 "VZ": 0.0,
             }
+        self.error_count = 0
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
         # TODO Add an inter-process queue between mapping and self
@@ -244,22 +245,18 @@ class PathPlanning(Process):
         # maybe, depending on how we feel about this.
         # NOTE This doesn't work on MacOS due to:
         # NOTE https://docs.python.org/3/library/multiprocessing.html#multiprocessing.Queue.qsize
-        try:
-            num_messages = self.command_queue.qsize()
-        except NotImplementedError:
-            self.log.debug("MacOS System does not implement _semlock")
-            num_messages = 1
-        if num_messages > 0:
-            for _ in range(num_messages):
-                try:
-                    self.commands.append(
-                        self.command_queue.get(
-                        block=True,
-                        timeout=0.0
-                        )
+
+        # Try 5 times to get messages then execute them
+        for _ in range(10):
+            try:
+                self.commands.append(
+                    self.command_queue.get(
+                    block=True,
+                    timeout=0.0
                     )
-                except Empty:
-                    continue
+                )
+            except Empty:
+                continue
 
     def run(self):
         """
@@ -285,7 +282,8 @@ class PathPlanning(Process):
 
         if not self.airborne and self.simulation:
             self.takeoff()
-        self.command_queue.put("Takeoff Completed")
+        for _ in range(2):
+            self.command_queue.put("Takeoff Completed")
         # TODO What if there is a collision or error?
 
         # Main Execution
@@ -304,7 +302,6 @@ class PathPlanning(Process):
             # the stream of messages.
             # TODO Add path planning algorithms for processing
             if self.simulation:
-                # We will wait for each command to be completed
                 for command in self.commands:
                     self.log.info("{}|{}|commanded_position|{}".format(
                         datetime.utcnow(),
@@ -328,6 +325,7 @@ class PathPlanning(Process):
                         if command.move_by == "position":
                             self.last_command = copy.deepcopy(command)
                     except Exception as error:
+                        traceback.print_exc()
                         self.log.error("{}|{}|error|{}".format(
                             datetime.utcnow(),
                             self.drone_id,
@@ -360,9 +358,9 @@ class PathPlanning(Process):
                             )
 
     def calculate_velocities(self,target_pos, current_pos, command, startTime):
-        kP = 0.3
-        kI = 0.01
-        kD = 0.01
+        kP = 0.4
+        kI = 0.0
+        kD = 0.2
         vMax = 20 
         jMax = 25
         # print(target_pos.Z, current_pos.Z)
@@ -385,6 +383,15 @@ class PathPlanning(Process):
         x_integral = (self.integral_error["X"] + x_error) * dt
         y_integral = (self.integral_error["Y"] + y_error) * dt
         z_integral = (self.integral_error["Z"] + z_error) * dt
+        self.error_count += 1
+        if self.error_count > 5:
+            self.integral_error["X"] = 0
+            self.integral_error["Y"] = 0
+            self.integral_error["Z"] = 0
+        else:
+            self.integral_error["X"] += x_error
+            self.integral_error["Y"] += y_error
+            self.integral_error["Z"] += z_error
 
         x_vel = (((x_error) * (kP))
                 + ((x_derivative) * (kD))
@@ -427,9 +434,9 @@ class PathPlanning(Process):
     def apply_velocity_constraints(self, speed, z_val=False):
         # These constraints need to be read from a settings file
         if not z_val and speed > 20:
-            speed = speed
+            speed = 20
         elif z_val and speed < -20.0:
-            speed = -speed
+            speed = -20
         return speed
 
     def move_to_next_position(self, command: MovementCommand, startTime) -> bool:
@@ -467,38 +474,35 @@ class PathPlanning(Process):
                 z_Vel = self.last_velocities.vz
 
             heading = command.heading
-            self.log.info("{}|{}|velocities|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dumps([x_Vel, y_Vel, z_Vel])
-                                )
-                            )
+            
             # If we are step changing between velocities, cut it in half
             # if we exceed our threshold.
             if abs(x_Vel - self.last_velocities.vx) > 5:
-                x_Vel = x_Vel / 2.0
-                self.last_velocities.vx = x_Vel
-            else:
-                self.last_velocities.vx = x_Vel
+                x_Vel = x_Vel / 2.0    
             if abs(y_Vel - self.last_velocities.vy) > 5:
-                y_Vel = y_Vel / 2.0
-            else:
-                self.last_velocities.vy = y_Vel
-            if abs(z_Vel - self.last_velocities.vz) > 5:
-                z_Vel = z_Vel / 2.0
-            else:
-                self.last_velocities.vz = z_Vel
+                y_Vel = y_Vel / 2.0       
+            # if abs(z_Vel - self.last_velocities.vz) > 5:
+            #     z_Vel = z_Vel / 2.0
+            self.last_velocities.vx = x_Vel
+            self.last_velocities.vy = y_Vel
+            self.last_velocities.vz = z_Vel
         elif command.move_by == "velocity":
-            x_Vel = self.last_velocities.vx
-            y_Vel = self.last_velocities.vy
-            z_Vel = command.velocity.vz
+            # TODO Find a way to incorporate the previous velocities
+            x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
+            y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
+            z_Vel = self.last_velocities.vz + command.velocity.vz
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
                 "VZ": z_Vel,
             }
             heading = self.last_command.heading
-            self.last_velocities.vz = z_Vel
+        self.log.info("{}|{}|velocities|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dumps([x_Vel, y_Vel, z_Vel])
+                                )
+                            )
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,
@@ -508,3 +512,13 @@ class PathPlanning(Process):
                 vehicle_name=self.drone_id
             )
         return True
+
+    def interpolate_z_vel(self, next_z_vel):
+        previous_z_vel = self.last_velocities.vz
+        diff = abs(next_z_vel - previous_z_vel)
+        # We receive a new Z velocity that has some step
+        # change difference in velocity, say (1.0 and 4.0)
+        if diff > 3.0:
+            return next_z_vel / 2.0
+        else:
+            return next_z_vel
