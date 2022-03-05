@@ -157,7 +157,7 @@ class ObstacleAvoidance(Process):
                     )
                     self.path_planning_queue.put(command)
                 # Run at 20 hertz
-                time.sleep(0.05)
+                time.sleep(0.04)
         except Exception as error:
             traceback.print_exc()
             self.log.info(f"There was an error: {error}")
@@ -204,7 +204,7 @@ class ObstacleAvoidance(Process):
             z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
 
             # If we are within our distance threshold
-            if x2_distance < 10.0 or x1_distance < 2.0:
+            if x2_distance < 11.0 or x1_distance < 3.5:
 
                 x_distance = math.fabs(x2_distance - x1_distance)
                 z_distance = math.fabs(z2_distance - z1_distance)
@@ -213,7 +213,7 @@ class ObstacleAvoidance(Process):
                 # Go at the maximum speed in the upward direction but scale by
                 # the distance been the two z points. As we get closer to the
                 # ground, increase the Z velocity.
-                zVelocity = (z_distance / hypo) * 20.0 * (1 / z_distance) # Avoidance velocity
+                zVelocity = (z_distance / hypo) * 22.0 * (1 / z_distance) # Avoidance velocity
                 xVelocity = (x_distance / hypo) * -1
                 # zVelocity = zVelocity
                 # xVelocity = xVelocity

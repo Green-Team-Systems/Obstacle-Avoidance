@@ -296,13 +296,17 @@ class PathPlanning(Process):
         # self.command_queue.join()
         while not killer.kill_now:
             # Check the queue for commands. Will block until message received.
-            self.receive_commands()
+            # self.receive_commands()
             # TODO Add a common inter-process message to either containerize
             # the underlying set of messages or act as a header message for
             # the stream of messages.
             # TODO Add path planning algorithms for processing
             if self.simulation:
-                for command in self.commands:
+                try:
+                    command = self.command_queue.get(
+                        block=True,
+                        timeout=0.0
+                        )
                     self.log.info("{}|{}|commanded_position|{}".format(
                         datetime.utcnow(),
                         self.drone_id,
@@ -331,7 +335,9 @@ class PathPlanning(Process):
                             self.drone_id,
                             error)
                         )
-                self.commands.clear()
+                # self.commands.clear()
+                except Empty:
+                    continue
             else:
                 time.sleep(0.1)
         self.log.info("{}|{}|message|{}".format(
@@ -432,11 +438,12 @@ class PathPlanning(Process):
         return velocity
 
     def apply_velocity_constraints(self, speed, z_val=False):
+        threshold = 19
         # These constraints need to be read from a settings file
-        if not z_val and speed > 20:
-            speed = 20
-        elif z_val and speed < -20.0:
-            speed = -20
+        if not z_val and speed > threshold:
+            speed = threshold
+        elif z_val and speed < -threshold:
+            speed = -threshold
         return speed
 
     def move_to_next_position(self, command: MovementCommand, startTime) -> bool:
@@ -481,8 +488,8 @@ class PathPlanning(Process):
                 x_Vel = x_Vel / 2.0    
             if abs(y_Vel - self.last_velocities.vy) > 5:
                 y_Vel = y_Vel / 2.0       
-            # if abs(z_Vel - self.last_velocities.vz) > 5:
-            #     z_Vel = z_Vel / 2.0
+            if abs(z_Vel - self.last_velocities.vz) > 5:
+                z_Vel = z_Vel / 2.0
             self.last_velocities.vx = x_Vel
             self.last_velocities.vy = y_Vel
             self.last_velocities.vz = z_Vel
@@ -490,7 +497,7 @@ class PathPlanning(Process):
             # TODO Find a way to incorporate the previous velocities
             x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
             y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
-            z_Vel = self.last_velocities.vz + command.velocity.vz
+            z_Vel = self.interpolate_z_vel(command.velocity.vz)
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
@@ -503,6 +510,7 @@ class PathPlanning(Process):
                                 json.dumps([x_Vel, y_Vel, z_Vel])
                                 )
                             )
+        
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,
@@ -515,10 +523,6 @@ class PathPlanning(Process):
 
     def interpolate_z_vel(self, next_z_vel):
         previous_z_vel = self.last_velocities.vz
-        diff = abs(next_z_vel - previous_z_vel)
         # We receive a new Z velocity that has some step
         # change difference in velocity, say (1.0 and 4.0)
-        if diff > 3.0:
-            return next_z_vel / 2.0
-        else:
-            return next_z_vel
+        return previous_z_vel + next_z_vel
