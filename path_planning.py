@@ -82,6 +82,7 @@ class PathPlanning(Process):
                 "VZ": 0.0,
             }
         self.error_count = 0
+        self.last_position = PosVec3()
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
         # TODO Add an inter-process queue between mapping and self
@@ -493,6 +494,9 @@ class PathPlanning(Process):
             self.last_velocities.vx = x_Vel
             self.last_velocities.vy = y_Vel
             self.last_velocities.vz = z_Vel
+            self.last_position.X = command.position.X
+            self.last_position.Y = command.position.Y
+            self.last_position.Z = command.position.Z
         elif command.move_by == "velocity":
             # TODO Find a way to incorporate the previous velocities
             x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
