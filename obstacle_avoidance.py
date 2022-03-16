@@ -212,11 +212,9 @@ class ObstacleAvoidance(Process):
                 hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
                 # Go at the maximum speed in the upward direction but scale by
                 # the distance been the two z points. As we get closer to the
-                # ground, increase the Z velocity.
-                zVelocity = (z_distance / hypo) * 22.0 * (1 / z_distance) # Avoidance velocity
+                # ground, increase the Z /velocity.
+                zVelocity = (z_distance / hypo) * 16.0 * (1 / x_distance) # Avoidance velocity
                 xVelocity = (x_distance / hypo) * -1
-                # zVelocity = zVelocity
-                # xVelocity = xVelocity
 
             # print(f'Z speed: {zVelocity}')
             # print(f'X speed: {xVelocity}')
