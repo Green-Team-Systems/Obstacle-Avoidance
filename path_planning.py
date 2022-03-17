@@ -395,6 +395,7 @@ class PathPlanning(Process):
             self.integral_error["X"] = 0
             self.integral_error["Y"] = 0
             self.integral_error["Z"] = 0
+            self.error_count = 0
         else:
             self.integral_error["X"] += x_error
             self.integral_error["Y"] += y_error
