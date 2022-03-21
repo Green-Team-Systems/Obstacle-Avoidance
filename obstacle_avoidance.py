@@ -78,22 +78,7 @@ class ObstacleAvoidance(Process):
         self.last_command = None
         self.takeoff_completed = False
         # TODO Add an inter-process queue between mapping and self
-        FORMAT = '%(asctime)s %(message)s'
-        # logging.basicConfig(format=FORMAT,
-         #                   level=logging.INFO)
-        file_handler = logging.FileHandler(
-            "logs/{drone_id}-{name}-{date}-Obstacle-Avoidance.log".format(
-                name=__name__,
-                drone_id=self.drone_id,
-                date="{}-{}-{}".format(
-                    datetime.utcnow().month,
-                    datetime.utcnow().day,
-                    datetime.utcnow().year,
-                )
-        ))
-        self.log = logging.getLogger(self.drone_id + __name__)
-        self.log.setLevel(logging.INFO)
-        self.log.addHandler(file_handler)
+        
 
     def build_airsim_client(self):
         """
@@ -118,6 +103,22 @@ class ObstacleAvoidance(Process):
     
     def run(self):
         Process.run(self)
+        FORMAT = '%(asctime)s|%(message)s'
+        logging.basicConfig(format=FORMAT,
+                            level=logging.INFO)
+        file_handler = logging.FileHandler(
+            "logs/{drone_id}-{name}-{date}-Obstacle-Avoidance.log".format(
+                name=__name__,
+                drone_id=self.drone_id,
+                date="{}-{}-{}".format(
+                    datetime.utcnow().month,
+                    datetime.utcnow().day,
+                    datetime.utcnow().year,
+                )
+        ))
+        self.log = logging.getLogger(self.drone_id + __name__)
+        self.log.setLevel(logging.INFO)
+        self.log.addHandler(file_handler)
         killer = GracefulKiller()
         if self.simulation:
             self.build_airsim_client()
@@ -137,7 +138,10 @@ class ObstacleAvoidance(Process):
                 pass
         try:
             while not killer.kill_now:
-                lidar_data = self.airsim_client.getLidarData(lidar_name=self.sensor_name,vehicle_name=self.drone_id)
+                lidar_data = self.airsim_client.getLidarData(
+                    lidar_name=self.sensor_name,
+                    vehicle_name=self.drone_id
+                )
                 data = lidar_data.point_cloud
                 x_vel, z_vel = self.slopeCalculation(data, 10.0)
                 if self.publish_velocity:
@@ -212,11 +216,9 @@ class ObstacleAvoidance(Process):
                 hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
                 # Go at the maximum speed in the upward direction but scale by
                 # the distance been the two z points. As we get closer to the
-                # ground, increase the Z velocity.
-                zVelocity = (z_distance / hypo) * 22.0 * (1 / z_distance) # Avoidance velocity
+                # ground, increase the Z /velocity.
+                zVelocity = (z_distance / hypo) * 16.0 * (1 / x_distance) # Avoidance velocity
                 xVelocity = (x_distance / hypo) * -1
-                # zVelocity = zVelocity
-                # xVelocity = xVelocity
 
             # print(f'Z speed: {zVelocity}')
             # print(f'X speed: {xVelocity}')

@@ -141,9 +141,10 @@ if __name__ == "__main__":
                     position
                 )
                 if count % 4 == 0:
-                    print(f"Current Position: {position} Target Position: {command.position}")
+                    #print(f"Current Position: {position} Target Position: {command.position}")
+                    0
                 if dist_to_target < dist_threshold:
-                    print(dist_to_target)
+                    #print(dist_to_target)
                     arrived = True
                 else:
                     for i, queue in enumerate(path_planning_queues):

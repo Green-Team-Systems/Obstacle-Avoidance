@@ -399,6 +399,7 @@ class PathPlanning(Process):
             self.integral_error["X"] = 0
             self.integral_error["Y"] = 0
             self.integral_error["Z"] = 0
+            self.error_count = 0
         else:
             self.integral_error["X"] += x_error
             self.integral_error["Y"] += y_error
@@ -505,7 +506,9 @@ class PathPlanning(Process):
             # TODO Find a way to incorporate the previous velocities
             x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
             y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
-            z_Vel = self.interpolate_z_vel(command.velocity.vz)
+            z_Vel = self.interpolate_z_vel(command.velocity.vz) + self.last_velocities.vz
+            print(f"last vel {self.last_velocities.vz}")
+            print(f"oa vel {command.velocity.vz}")
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
@@ -518,7 +521,7 @@ class PathPlanning(Process):
                                 json.dumps([x_Vel, y_Vel, z_Vel])
                                 )
                             )
-        
+        print(f'Z speed: {z_Vel}')
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,
