@@ -204,7 +204,7 @@ class ObstacleAvoidance(Process):
             z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
 
             # If we are within our distance threshold
-            if x2_distance < 11.0 or x1_distance < 3.5:
+            if x2_distance < 11.0 or x1_distance < 3.0 or z1_distance > -1.5:
 
                 x_distance = math.fabs(x2_distance - x1_distance)
                 z_distance = math.fabs(z2_distance - z1_distance)

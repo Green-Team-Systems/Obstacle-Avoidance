@@ -338,7 +338,11 @@ class PathPlanning(Process):
                         )
                 # self.commands.clear()
                 except Empty:
-                    continue
+                    try:
+                        self.move_to_next_position(self.last_command, startTime)
+                        time.sleep(0.001)
+                    except Exception:
+                        pass
             else:
                 time.sleep(0.1)
         self.log.info("{}|{}|message|{}".format(
@@ -366,8 +370,8 @@ class PathPlanning(Process):
 
     def calculate_velocities(self,target_pos, current_pos, command, startTime):
         kP = 0.4
-        kI = 0.0
-        kD = 0.2
+        kI = 0.05
+        kD = 0.05
         vMax = 20 
         jMax = 25
         # print(target_pos.Z, current_pos.Z)
