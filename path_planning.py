@@ -374,7 +374,7 @@ class PathPlanning(Process):
         kD = 0.05
         vMax = 20 
         jMax = 25
-        # print(target_pos.Z, current_pos.Z)
+        #print(target_pos.Z, current_pos.Z)
         x_error = target_pos.X - current_pos.X
         y_error = target_pos.Y - current_pos.Y
         z_error = -1 * (target_pos.Z - current_pos.Z)
@@ -414,7 +414,7 @@ class PathPlanning(Process):
         z_vel = -1 * (((z_error) * (kP))
                     + ((z_derivative) * (kD))
                     + ((z_integral) * (kI)))
-        
+
         # x_vel = self.slew(vMax, jMax, slew, x_vel)
         x_vel = self.apply_velocity_constraints(x_vel)
         y_vel = self.apply_velocity_constraints(y_vel)
@@ -452,6 +452,22 @@ class PathPlanning(Process):
             speed = -threshold
         return speed
 
+    def interpolate_z_vel(self, next_z_vel):
+        previous_z_vel = self.last_velocities.vz
+        # We receive a new Z velocity that has some step
+        # change difference in velocity, say (1.0 and 4.0)
+        return previous_z_vel + next_z_vel
+        
+    def step_function(self, x_Vel, y_Vel, z_Vel):
+
+        if abs(x_Vel - self.last_velocities.vx) > 5:
+            x_Vel = x_Vel / 2.0    
+        if abs(y_Vel - self.last_velocities.vy) > 5:
+            y_Vel = y_Vel / 2.0       
+        if abs(z_Vel - self.last_velocities.vz) > 5:
+            z_Vel = z_Vel / 2.0
+        return x_Vel, y_Vel, z_Vel
+
     def move_to_next_position(self, command: MovementCommand, startTime) -> bool:
         """
         Given a MovementCommand, send the appropriate AirSim API call
@@ -471,56 +487,43 @@ class PathPlanning(Process):
         """
         # TODO Add drivetrain once that is fixed
         if command.move_by == "position":
-            state = self.airsim_client.getMultirotorState(
-                vehicle_name=self.drone_id
-            )
-            position = position_to_list(
-                state.kinematics_estimated.position
-            )
-            x_Vel, y_Vel, z_Vel = self.calculate_velocities(
-                command.position,
-                position,
-                command, 
-                startTime
-            )
-            if abs(z_Vel - self.last_velocities.vz) > 10 and self.last_command == "velocity":
-                z_Vel = self.last_velocities.vz
-
-            heading = command.heading
-            
-            # If we are step changing between velocities, cut it in half
-            # if we exceed our threshold.
-            if abs(x_Vel - self.last_velocities.vx) > 5:
-                x_Vel = x_Vel / 2.0    
-            if abs(y_Vel - self.last_velocities.vy) > 5:
-                y_Vel = y_Vel / 2.0       
-            if abs(z_Vel - self.last_velocities.vz) > 5:
-                z_Vel = z_Vel / 2.0
-            self.last_velocities.vx = x_Vel
-            self.last_velocities.vy = y_Vel
-            self.last_velocities.vz = z_Vel
             self.last_position.X = command.position.X
             self.last_position.Y = command.position.Y
             self.last_position.Z = command.position.Z
-        elif command.move_by == "velocity":
+            heading = command.heading
+        state = self.airsim_client.getMultirotorState(
+            vehicle_name=self.drone_id
+        )
+        position = position_to_list(
+            state.kinematics_estimated.position
+        )
+        x_Vel, y_Vel, z_Vel = self.calculate_velocities(
+            self.last_position,
+            position,
+            command, 
+            startTime
+        )
+        # If we are step changing between velocities, cut it in half
+        # if we exceed our threshold.
+        x_Vel, y_Vel, z_Vel = self.step_function(x_Vel, y_Vel, z_Vel)
+
+        if command.move_by == "velocity":
             # TODO Find a way to incorporate the previous velocities
-            x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
-            y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
-            z_Vel = self.interpolate_z_vel(command.velocity.vz) + self.last_velocities.vz
-            print(f"last vel {self.last_velocities.vz}")
-            print(f"oa vel {command.velocity.vz}")
-            self.previous_velocities = {
-                "VX": x_Vel,
-                "VY": y_Vel,
-                "VZ": z_Vel,
-            }
+            x_Vel = x_Vel + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
+            y_Vel = y_Vel + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
+            z_Vel = self.interpolate_z_vel(command.velocity.vz) + z_Vel
+            #print(f"last vel {self.last_velocities.vz}")
+            #print(f"oa vel {command.velocity.vz}")
+            print("here")
             heading = self.last_command.heading
+
         self.log.info("{}|{}|velocities|{}".format(
                                 datetime.utcnow(),
                                 self.drone_id,
                                 json.dumps([x_Vel, y_Vel, z_Vel])
                                 )
                             )
+
         print(f'Z speed: {z_Vel}')
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
@@ -530,10 +533,7 @@ class PathPlanning(Process):
                 yaw_mode=YawMode(False,heading),
                 vehicle_name=self.drone_id
             )
+        self.last_velocities.vx = x_Vel
+        self.last_velocities.vy = y_Vel
+        self.last_velocities.vz = z_Vel
         return True
-
-    def interpolate_z_vel(self, next_z_vel):
-        previous_z_vel = self.last_velocities.vz
-        # We receive a new Z velocity that has some step
-        # change difference in velocity, say (1.0 and 4.0)
-        return previous_z_vel + next_z_vel
