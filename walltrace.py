@@ -100,9 +100,10 @@ class ObstacleAvoidance:
             # print(points)
             # print(data)
             
-            for i in range(0, len(lidar_data.point_cloud), 3):
+            for i in range(0, len(data), 3):
                 xyz = lidar_data.point_cloud[i:i+3]
 
+                # print(xyz)
                 # Check at the end of each row for positive y and negative y value at the beginning of new row
                 if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
                     overall_point_list.append(next_row)
@@ -110,7 +111,12 @@ class ObstacleAvoidance:
                     # print(len(next_row))
                     next_row = list()
                 next_row.append(xyz)
+                # print(next_row)
                 y_points_last = xyz[1]
+        # print(data)
+        # print('\n')
+        # if overall_point_list == []:
+        #     print('EMPTY LIDAR')
         return overall_point_list
 
     """
@@ -150,7 +156,6 @@ class ObstacleAvoidance:
         angleInDegrees = math.degrees(angleInRad)
 
         # angle = self.angle_of_vectors()
-        #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, self.vehicle_name=self.vehicle_name).join()
         self.client.rotateToYawAsync(angleInDegrees, timeout_sec=0.3, margin=0.1, vehicle_name=self.vehicle_name)
         return angleInRad, angleInDegrees
         
@@ -196,7 +201,6 @@ class ObstacleAvoidance:
         angleInDegrees = math.degrees(angleInRad)
 
         # angle = self.angle_of_vectors()
-        #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, self.vehicle_name=self.vehicle_name).join()
         # print('started turning towards goal')
         self.client.rotateToYawAsync(angleInDegrees, timeout_sec=0.2, margin=0.1, vehicle_name=self.vehicle_name).join()
         # print('finished turning towards goal')
@@ -520,45 +524,16 @@ class ObstacleAvoidance:
     def follow_vector(self, vector, velocity):
         
         #follow parallel to obstacle (strafe)
-        #self.client.moveToPositionAsync(vector[0], vector[1], 0, velocity, 0.5, vehicle_name=self.vehicle_name)
-        #self.client.moveByVelocityAsync
-        self.client.moveByVelocityBodyFrameAsync(vector[0], vector[1], 0, 0.3)
-        # self.client.moveByVelocityAsync(vector[0], vector[1], vector[2]
+        # self.client.moveByVelocityBodyFrameAsync(vector[0], vector[1], 0, 0.3)
+        
+        vx = vector[0]
+        vy = vector[1]
+        vz = 0
+        timeout = 0.3
 
-        return
+        return vx, vy, vz, timeout
 
-    """
-    Description: Move forward until the lidar detects an obstacle
-    
-    Inputs: self.vehicle_name, lidar name
-    
-    Outputs: None
-    
-    Notes:
 
-    """
-
-    def approach(self):
-        collisioncheck = False
-        shouldMove = True
-        try:
-            while shouldMove==True:
-                
-                overall_point_list = self.scan(self.vehicle_name,self.lidar_names)
-                self.client.moveByVelocityBodyFrameAsync(3, 0, 0,0.1)
-                
-                collisioncheck = self.checkForCollision(5, overall_point_list)
-
-                # exit when collision into obstacle
-                if(collisioncheck == True):
-                    self.stopDrone()
-                    
-                    shouldMove = False
-                    
-        except KeyboardInterrupt:
-            airsim.wait_key('Press any key to stop running this script')
-            lidarTest.stop()
-            print("Done!\n")
 
     def normalize_vector(self, vector):
         
@@ -700,17 +675,12 @@ class ObstacleAvoidance:
             if (filtered_row is None):
                 return
             sum_vector = self.calculate_object_sum_vector(fixedchosenRow)
-            print(f"Sum vector: {type(sum_vector)}")
             norm_sum_vector = self.normalize_vector(sum_vector)
             if(norm_sum_vector is [0,0]):
                 return
-            print(f"Norm vector: {type(norm_sum_vector)}")
             vectorfromwall = self.vector_45_from_wall(norm_sum_vector)
-            print("Vector from wall: " + str(vectorfromwall))
             # get angle from drone to wall vector
             angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
-            print("Turning angle: " + str(angleInDegree))
-            # self.client.rotateToYawAsync(angleInDegree, timeout_sec=30, margin=0.1, vehicle_name=self.vehicle_name)
             self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
             self.follow_vector(norm_sum_vector, 5)
         else:
@@ -724,7 +694,14 @@ class ObstacleAvoidance:
         #tuple[1] to get degrees
         goalAngle = self.getGoalAngle()[1]
         # print('going forward')
-        self.client.moveByVelocityBodyFrameAsync(3, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, goalAngle))
+        # self.client.moveByVelocityBodyFrameAsync(3, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, goalAngle))
+
+        vx = 3
+        vy = 0
+        vz = 0
+        
+        # return velocity parameters in moveByVelocityAsync
+        return vx, vy, vz 
 
     # Main execution loop for mode switch and drone movement
     def execute(self):
