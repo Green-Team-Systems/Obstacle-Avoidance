@@ -27,6 +27,7 @@ from utils.data_classes import PosVec3, MovementCommand, VelVec3, OASystemStates
 from utils.position_utils import position_to_list
 from utils.killer_utils import GracefulKiller
 from airsim.types import LidarData, YawMode
+from walltrace import WallTrace
 # TODO Create status library
 
 
@@ -155,7 +156,8 @@ class ObstacleAvoidance(Process):
                 #Call Harrisons Algo here
                 if(self.state != OASystemStates.CLEARANCE):
                     if(position.Z > 120):
-                        pass #run Josh algo
+                        WallTrace.execute(data) #run Josh algo
+                        self.state = OASystemStates.WALLTRACE
                     else:
                         x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
                 # TODO Add state switching logic

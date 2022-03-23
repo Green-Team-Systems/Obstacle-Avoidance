@@ -28,7 +28,7 @@ from itertools import groupby
 
 # Makes the drone fly and get Lidar data
 
-class ObstacleAvoidance:
+class WallTrace:
     
     destination = (-100, 50, 0)
     collisiondist = 4
@@ -45,29 +45,23 @@ class ObstacleAvoidance:
         return self.client.getMultirotorState().kinematics_estimated
 
 
-    # def __init__(self):
+    def __init__(self):
 
-    #     # connect to the AirSim simulator
+        # connect to the AirSim simulator
         
-    #     self.client = airsim.MultirotorClient()
-    #     self.client.confirmConnection()
-    #     self.client.enableApiControl(True)
-    #     self.mode = self.STATES["Clear"]
+        self.client = airsim.MultirotorClient()
+        self.client.confirmConnection()
+        self.client.enableApiControl(True)
+        self.mode = self.STATES["Clear"]
 
-    # def takeoff(self):
-    #     # Takeoff of Drone
-    #     state = self.client.getMultirotorState()
-    #     s = pprint.pformat(state)
-    #     print(s)
-    #     airsim.wait_key('Press any key to takeoff')
-    #     self.client.takeoffAsync().join()
-    #     state = self.client.getMultirotorState()
-
-
-    def parse_lidarData(self, data):
-        points = np.array(data.point_cloud, dtype=np.dtype('f4'))
-        points = np.reshape(points, (int(points.shape[0]/3), 3))
-        return points
+    def takeoff(self):
+        # Takeoff of Drone
+        state = self.client.getMultirotorState()
+        s = pprint.pformat(state)
+        print(s)
+        airsim.wait_key('Press any key to takeoff')
+        self.client.takeoffAsync().join()
+        state = self.client.getMultirotorState()
 
     """
     Description: This function is used to get the lidar point list data from the drone.
@@ -78,45 +72,21 @@ class ObstacleAvoidance:
     
     Notes: Array is grouped by rows, each row is a list of 3d points
     structured as follows - [[[x,y,z],[x,y,z],[x,y,z]], [[x,y,z],[x,y,z],[x,y,z]], [[x,y,z],[x,y,z],[x,y,z]]]
-
     """
 
-    def scan(self):
-        # print('Scanning ...')
-        # Scan lidar data
+    def scan(self, lidar_data):
         next_row = []
         y_points_last = 0
         overall_point_list=[]
         for lidar_name in self.lidar_names:
-
-            lidar_data = self.client.getLidarData(lidar_name=lidar_name,vehicle_name=self.vehicle_name)
-            data = lidar_data.point_cloud
-            points = self.parse_lidarData(lidar_data)
-
-            with open('lidarrawdata.txt', 'w') as f:
-                for item in points:
-                    f.write("%s\n" % item)
-
-            # print(points)
-            # print(data)
-            
-            for i in range(0, len(data), 3):
-                xyz = lidar_data.point_cloud[i:i+3]
-
-                # print(xyz)
+            for i in range(0, len(lidar_data), 3):
+                xyz = lidar_data[i:i+3]
                 # Check at the end of each row for positive y and negative y value at the beginning of new row
                 if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
                     overall_point_list.append(next_row)
-                    # print('new row')
-                    # print(len(next_row))
                     next_row = list()
                 next_row.append(xyz)
-                # print(next_row)
                 y_points_last = xyz[1]
-        # print(data)
-        # print('\n')
-        # if overall_point_list == []:
-        #     print('EMPTY LIDAR')
         return overall_point_list
 
     """
@@ -127,7 +97,6 @@ class ObstacleAvoidance:
     Outputs: 
     
     Notes: Need to fix function to save coordinates in class
-
     """
 
     def turnTowardsGoalAsync(self):
@@ -156,6 +125,7 @@ class ObstacleAvoidance:
         angleInDegrees = math.degrees(angleInRad)
 
         # angle = self.angle_of_vectors()
+        #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, self.vehicle_name=self.vehicle_name).join()
         self.client.rotateToYawAsync(angleInDegrees, timeout_sec=0.3, margin=0.1, vehicle_name=self.vehicle_name)
         return angleInRad, angleInDegrees
         
@@ -167,7 +137,6 @@ class ObstacleAvoidance:
     Outputs: 
     
     Notes: Need to fix function to save coordinates in class
-
     """
 
     def turnTowardsGoalSynchronous(self):
@@ -201,6 +170,7 @@ class ObstacleAvoidance:
         angleInDegrees = math.degrees(angleInRad)
 
         # angle = self.angle_of_vectors()
+        #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, self.vehicle_name=self.vehicle_name).join()
         # print('started turning towards goal')
         self.client.rotateToYawAsync(angleInDegrees, timeout_sec=0.2, margin=0.1, vehicle_name=self.vehicle_name).join()
         # print('finished turning towards goal')
@@ -249,7 +219,6 @@ class ObstacleAvoidance:
         roll is rotation around x in radians (counterclockwise)
         pitch is rotation around y in radians (counterclockwise)
         yaw is rotation around z in radians (counterclockwise)
-
     """
 
     def euler_from_quaternion(self,x, y, z, w):
@@ -306,42 +275,30 @@ class ObstacleAvoidance:
 
     """
     Description: Find closest row parallel to the z level of the drone
-                 closest to the drone's z position which is 0
     
     Inputs: overall_point_list
     
     Outputs: row index i
     
     Notes:
-
     """
 
     def chooseRow(self, overall_point_list):
-        # print(overall_point_list)
-
-
         top_row = overall_point_list[1] 
-
         mid_point_top_level_ind = int(len(top_row) / 2)
         z_level_row = top_row[mid_point_top_level_ind][2] # initial z val of top row mid
         i = 1
-        
-        # row - [[x,y,z], [x,y,z], [x,y,z]]
-        
+
         for row_index, row in enumerate(overall_point_list):
             if(len(row) > 0):
                 mid_point = int(len(row) / 2) # index of mid point
                 mid_point_z = row[mid_point][2] # z value of mid point
                 if(abs(mid_point_z) < abs(z_level_row)):
                     z_level_row = mid_point_z
-                    # print(z_level_row)
-                    # print('Found new row')
+
                     i = row_index
 
-        # print ("chose row" + str(i))
         return i
-
-            
 
     """
     Description: Produce a array of boolean values for each point in the row based on distance threshold
@@ -351,7 +308,6 @@ class ObstacleAvoidance:
     Outputs: boolean array
     
     Notes: Used to find the obstacles location in relation to the drones FOV
-
     """
 
     def booleanArray_parser(self, view_distance, overall_point_list, row_index):
@@ -386,10 +342,8 @@ class ObstacleAvoidance:
 
         return booleanArray, leftHalf_booleanArray, rightHalf_booleanArray, narrow_view
 
-
     def split_list(self,thelist, delimiter):
         ''' Split a list into sub lists, depending on a delimiter.
-
         delimiters - item or tuple of item
         '''
         results = []
@@ -425,7 +379,6 @@ class ObstacleAvoidance:
         return results
 
 
-
     def wall_drawer(self, booleanArray, chosen_row):
         # print([list(j) for i, j in groupby(booleanArray)])
         self.split_list(booleanArray, 0)
@@ -438,23 +391,18 @@ class ObstacleAvoidance:
     Outputs: Fixed row of points
     
     Notes:
-
     """
 
     def dataFixer(self, threshold, chosen_row):
 
         #Todo: place 'Gap' at the end / corner
-        
-        
         last_point = np.array([chosen_row[0][0], chosen_row[0][1]])  #list of x and y value of first point
         for ind, point_val in enumerate(chosen_row):
-            # [point_x, point_y] = np.array([point_val[0], point_val[1]])
             temp = last_point - np.array([point_val[0], point_val[1]])
             vector_dist = np.sqrt(temp[0]**2 + temp[1]**2)
 
             #calculated the vector distance between two points to see if there's a gap in the lidar data
             if vector_dist > threshold:
-                # print('inserted')
                 chosen_row.insert(ind, 'G')
             
             last_point = np.array([point_val[0], point_val[1]])
@@ -466,13 +414,11 @@ class ObstacleAvoidance:
         #Todo: make function consider 'G'
         filtered_row = []
         for ind, val in enumerate(fixed_row):
-            
             if val != 'G':
                 dist = val[0]
                 if(dist <= view_distance):
                     filtered_row.append(val)
-        # x,y values of filtered row
-        
+
 
         return filtered_row
         
@@ -502,7 +448,6 @@ class ObstacleAvoidance:
     Outputs: sum vector
     
     Notes:
-
     """
 
     def calculate_object_sum_vector(self, fixed_row):
@@ -521,19 +466,46 @@ class ObstacleAvoidance:
         return sum_vector
 
 
-    def follow_vector(self, vector, velocity):
+    def follow_vector(self, vector):
         
-        #follow parallel to obstacle (strafe)
-        # self.client.moveByVelocityBodyFrameAsync(vector[0], vector[1], 0, 0.3)
+
+        self.client.moveByVelocityBodyFrameAsync(vector[0], vector[1], 0, 0.3)
         
-        vx = vector[0]
-        vy = vector[1]
-        vz = 0
-        timeout = 0.3
+        
 
-        return vx, vy, vz, timeout
+        return
 
+    """
+    Description: Move forward until the lidar detects an obstacle
+    
+    Inputs: self.vehicle_name, lidar name
+    
+    Outputs: None
+    
+    Notes:
+    """
 
+    def approach(self):
+        collisioncheck = False
+        shouldMove = True
+        try:
+            while shouldMove==True:
+                
+                overall_point_list = self.scan(self.vehicle_name,self.lidar_names)
+                self.client.moveByVelocityBodyFrameAsync(3, 0, 0,0.1)
+                
+                collisioncheck = self.checkForCollision(5, overall_point_list)
+
+                # exit when collision into obstacle
+                if(collisioncheck == True):
+                    self.stopDrone()
+                    
+                    shouldMove = False
+                    
+        except KeyboardInterrupt:
+            airsim.wait_key('Press any key to stop running this script')
+            lidarTest.stop()
+            print("Done!\n")
 
     def normalize_vector(self, vector):
         
@@ -555,7 +527,6 @@ class ObstacleAvoidance:
     Outputs: Offset wall vector
     
     Notes:
-
     """
 
     def vector_45_from_wall(self, wall_vector):
@@ -574,7 +545,6 @@ class ObstacleAvoidance:
     Outputs: angle in degrees
     
     Notes:
-
     """
 
     def angle_from_drone_to_vector(self, vector):
@@ -625,7 +595,6 @@ class ObstacleAvoidance:
     Outputs: angle (radians)
     
     Notes:
-
     """
 
     def angle_of_vectors(self, vector1, vector2):
@@ -653,39 +622,42 @@ class ObstacleAvoidance:
         self.client.moveByVelocityAsync(0, 0, 0, 2).join()
 
 
-    def avoid(self):
+    def avoid(self, lidar_data):
         # turn 45 against wall
         # strafe with wall vector
         # break out when filtered view is clear
+
+        overall_point_list = self.scan(lidar_data)
+        #choose the row nearest to z = 0 (relative to drone)
+        chosenRowIndex = self.chooseRow(overall_point_list)
+        #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
+        fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
         
+        filtered_row = self.view_distance_filter(5, fixedchosenRow)
 
-        overall_point_list = self.scan()
-
-        if len(overall_point_list) >= 2:
-
-            
-            #choose the row nearest to z = 0 (relative to drone)
-            chosenRowIndex = self.chooseRow(overall_point_list)
-            #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-            fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-            
-            filtered_row = self.view_distance_filter(5, fixedchosenRow)
-
-            # get vector 45 degrees from wall
-            if (filtered_row is None):
-                return
-            sum_vector = self.calculate_object_sum_vector(fixedchosenRow)
-            norm_sum_vector = self.normalize_vector(sum_vector)
-            if(norm_sum_vector is [0,0]):
-                return
-            vectorfromwall = self.vector_45_from_wall(norm_sum_vector)
-            # get angle from drone to wall vector
-            angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
-            self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
-            self.follow_vector(norm_sum_vector, 5)
-        else:
-            pass
-
+        # get vector 45 degrees from wall
+        if (filtered_row is None):
+            return
+        sum_vector = self.calculate_object_sum_vector(fixedchosenRow)
+        print(f"Sum vector: {type(sum_vector)}")
+        norm_sum_vector = self.normalize_vector(sum_vector)
+        if(norm_sum_vector is [0,0]):
+            return
+        print(f"Norm vector: {type(norm_sum_vector)}")
+        vectorfromwall = self.vector_45_from_wall(norm_sum_vector)
+        print("Vector from wall: " + str(vectorfromwall))
+        # get angle from drone to wall vector
+        angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
+        print("Turning angle: " + str(angleInDegree))
+        # self.client.rotateToYawAsync(angleInDegree, timeout_sec=30, margin=0.1, vehicle_name=self.vehicle_name)
+        # self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
+        # self.follow_vector(norm_sum_vector)
+        
+        x_Vel = norm_sum_vector[0]
+        y_Vel = norm_sum_vector[1]
+        z_Vel = 0
+        
+        return angleInDegree, x_Vel, y_Vel, z_Vel
 
         
        
@@ -694,43 +666,35 @@ class ObstacleAvoidance:
         #tuple[1] to get degrees
         goalAngle = self.getGoalAngle()[1]
         # print('going forward')
-        # self.client.moveByVelocityBodyFrameAsync(3, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, goalAngle))
-
-        vx = 3
-        vy = 0
-        vz = 0
-        
-        # return velocity parameters in moveByVelocityAsync
-        return vx, vy, vz 
+        self.client.moveByVelocityBodyFrameAsync(3, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, goalAngle))
 
     # Main execution loop for mode switch and drone movement
-    def execute(self):
+    def execute(self, lidar_data):
         at_Goal = False
+        # get lidar
+        #turn lidar data into list
+        overall_point_list = self.scan(lidar_data)
+        #choose the row nearest to z = 0 (relative to drone)
+        chosenRowIndex = self.chooseRow(overall_point_list)
+        #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
+        fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
         
+        filtered_row = self.view_distance_filter(5, fixedchosenRow)
+        if (filtered_row != [] and self.mode == self.STATES["Clear"]):
+            self.mode = self.STATES["Obstacle"]
+            
         
-        while(at_Goal == False):
-            # get lidar
-            #turn lidar data into list
-            overall_point_list = self.scan()
-            #choose the row nearest to z = 0 (relative to drone)
-            chosenRowIndex = self.chooseRow(overall_point_list)
-            #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-            fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
+        elif (filtered_row == [] and self.mode == self.STATES["Obstacle"]):
+            self.mode = self.STATES["Clear"]
             
-            filtered_row = self.view_distance_filter(5, fixedchosenRow)
-            if (filtered_row != [] and self.mode == self.STATES["Clear"]):
-                self.mode = self.STATES["Obstacle"]
-                print('Avoiding')
-            
-            elif (filtered_row == [] and self.mode == self.STATES["Obstacle"]):
-                self.mode = self.STATES["Clear"]
-            
-            
-            if self.mode == "TOGOAL":
-                self.goToGoal()
-            elif self.mode == "AVOID":
-                self.avoid()
+        
+        if self.mode == "TOGOAL":
+            self.goToGoal()
+        elif self.mode == "AVOID":
+            angleInDegree, x_Vel, y_Vel, z_Vel = self.avoid(lidar_data)
 
-        # arrived at goal
-        self.stopDrone()
-        print('Reached Goal')
+        return angleInDegree, x_Vel, y_Vel, z_Vel
+            
+
+                
+
