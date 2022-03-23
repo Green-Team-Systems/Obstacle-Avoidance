@@ -23,7 +23,8 @@ from multiprocessing import Process
 from datetime import datetime
 from multiprocessing.queues import Empty
 
-from utils.data_classes import PosVec3, MovementCommand, VelVec3
+from utils.data_classes import PosVec3, MovementCommand, VelVec3, OASystemStates
+from utils.position_utils import position_to_list
 from utils.killer_utils import GracefulKiller
 from airsim.types import LidarData, YawMode
 # TODO Create status library
@@ -77,6 +78,7 @@ class ObstacleAvoidance(Process):
         self.status = None
         self.last_command = None
         self.takeoff_completed = False
+        self.state = OASystemStates.GROUNDED
         # TODO Add an inter-process queue between mapping and self
         
 
@@ -127,6 +129,7 @@ class ObstacleAvoidance(Process):
                 message = self.path_planning_queue.get(block=False)
                 if message == "Takeoff Completed":
                     self.takeoff_completed = True
+                    self.state = OASystemStates.PATH_PLANNING
                     self.log.info(
                                 "{}|{}|distances|{}".format(
                                     datetime.utcnow(),
@@ -142,24 +145,40 @@ class ObstacleAvoidance(Process):
                     lidar_name=self.sensor_name,
                     vehicle_name=self.drone_id
                 )
+                drone_state = self.airsim_client.getMultirotorState(
+                vehicle_name=self.drone_id
+                )
+                position = position_to_list(
+                    drone_state.kinematics_estimated.position
+                )
                 data = lidar_data.point_cloud
-                x_vel, z_vel = self.slopeCalculation(data, 10.0)
-                if self.publish_velocity:
-                    self.log.info(
-                            "{}|{}|vel_command|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dumps([x_vel,z_vel])
+                #Call Harrisons Algo here
+                if(self.state != OASystemStates.CLEARANCE):
+                    if(position.Z > 120):
+                        pass #run Josh algo
+                    else:
+                        x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
+                # TODO Add state switching logic
+                if self.state == OASystemStates.SLOPE:
+                    if self.publish_velocity: #slope caclulation returns 0 value when no points are deteced or the z value is to low so if statment to make sure not to call that command if z = 0
+                        self.log.info(
+                                "{}|{}|vel_command|{}".format(
+                                    datetime.utcnow(),
+                                    self.drone_id,
+                                    json.dumps([x_vel,z_vel])
+                                    )
                                 )
-                            )
-                    command = MovementCommand(
-                        velocity=VelVec3(
-                            vx=x_vel,
-                            vz=-1 * z_vel
-                        ),
-                        move_by="velocity"
-                    )
-                    self.path_planning_queue.put(command)
+                        command = MovementCommand(
+                            velocity=VelVec3(
+                                vx=x_vel,
+                                vz=-1 * z_vel # remeber that z is in ned corrdinate system so we have to inverse the speed of z velocity 
+                            ),
+                            move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
+                        )
+                        self.path_planning_queue.put(command)
+                elif self.state == OASystemStates.WALLTRACE:
+                    pass
+                
                 # Run at 20 hertz
                 time.sleep(0.04)
         except Exception as error:
@@ -232,6 +251,7 @@ class ObstacleAvoidance(Process):
 
         if zVelocity != 0.0:
             self.publish_velocity = True
+            self.state = OASystemStates.SLOPE
         else:
             self.publish_velocity = False
 
@@ -243,3 +263,4 @@ class ObstacleAvoidance(Process):
                         )
                      )
         return xVelocity, zVelocity
+

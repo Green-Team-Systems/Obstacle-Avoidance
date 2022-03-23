@@ -45,23 +45,23 @@ class ObstacleAvoidance:
         return self.client.getMultirotorState().kinematics_estimated
 
 
-    def __init__(self):
+    # def __init__(self):
 
-        # connect to the AirSim simulator
+    #     # connect to the AirSim simulator
         
-        self.client = airsim.MultirotorClient()
-        self.client.confirmConnection()
-        self.client.enableApiControl(True)
-        self.mode = self.STATES["Clear"]
+    #     self.client = airsim.MultirotorClient()
+    #     self.client.confirmConnection()
+    #     self.client.enableApiControl(True)
+    #     self.mode = self.STATES["Clear"]
 
-    def takeoff(self):
-        # Takeoff of Drone
-        state = self.client.getMultirotorState()
-        s = pprint.pformat(state)
-        print(s)
-        airsim.wait_key('Press any key to takeoff')
-        self.client.takeoffAsync().join()
-        state = self.client.getMultirotorState()
+    # def takeoff(self):
+    #     # Takeoff of Drone
+    #     state = self.client.getMultirotorState()
+    #     s = pprint.pformat(state)
+    #     print(s)
+    #     airsim.wait_key('Press any key to takeoff')
+    #     self.client.takeoffAsync().join()
+    #     state = self.client.getMultirotorState()
 
 
     def parse_lidarData(self, data):
@@ -705,86 +705,32 @@ class ObstacleAvoidance:
 
     # Main execution loop for mode switch and drone movement
     def execute(self):
-        print("arming the drone...")
-        
-        self.client.armDisarm(True)
-
-        self.takeoff()  
-        
-        airsim.wait_key('Press any key to move vehicle to (-10, 10, -10) at 5 m/s')
-        self.client.moveToPositionAsync(0, 0, -1, 5).join()
-
-        print('Scanning Has Started\n')
-        print('Use Keyboard Interrupt \'CTRL + C\' to Stop Scanning\n')
-        # [Go Forward, Turn Right, Turn Left]
-
-        Armed = True
-        
         at_Goal = False
-        # STATE = {
-        #     'Clear': self.goToGoal,
-        #     'Obstacle': self.avoid
-        # }
-
-        # mode = "Clear"
-
-        try:
-            while(at_Goal == False):
-                # get lidar
-                #turn lidar data into list
-                overall_point_list = self.scan()
-                # print(overall_point_list)
-                if (len(overall_point_list) >= 2):
-                    #choose the row nearest to z = 0 (relative to drone)
-                    chosenRowIndex = self.chooseRow(overall_point_list)
-                    #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-                    fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-                    
-                    filtered_row = self.view_distance_filter(5, fixedchosenRow)
-                    if (filtered_row != [] and self.mode == self.STATES["Clear"]):
-                        self.mode = self.STATES["Obstacle"]
-                        print('Avoiding')
-                    
-                    elif (filtered_row == [] and self.mode == self.STATES["Obstacle"]):
-                        self.mode = self.STATES["Clear"]
-                    
-                    
-                    if self.mode == "TOGOAL":
-                        self.goToGoal()
-                    elif self.mode == "AVOID":
-                        self.avoid()
-                else:
-                    # print(overall_point_list)
-                    pass
-
-            # arrived at goal
-            self.stopDrone()
-            print('Reached Goal')
+        
+        
+        while(at_Goal == False):
+            # get lidar
+            #turn lidar data into list
+            overall_point_list = self.scan()
+            #choose the row nearest to z = 0 (relative to drone)
+            chosenRowIndex = self.chooseRow(overall_point_list)
+            #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
+            fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
             
-        except KeyboardInterrupt:
-            self.stop()
-                
+            filtered_row = self.view_distance_filter(5, fixedchosenRow)
+            if (filtered_row != [] and self.mode == self.STATES["Clear"]):
+                self.mode = self.STATES["Obstacle"]
+                print('Avoiding')
+            
+            elif (filtered_row == [] and self.mode == self.STATES["Obstacle"]):
+                self.mode = self.STATES["Clear"]
+            
+            
+            if self.mode == "TOGOAL":
+                self.goToGoal()
+            elif self.mode == "AVOID":
+                self.avoid()
 
-
-                
-if __name__ == "__main__":
-    print('Main accessed')
-    args = sys.argv
-    args.pop(0)
-
-    arg_parser = argparse.ArgumentParser("Lidar.py makes drone fly and gets Lidar data")
-
-    arg_parser.add_argument('-save-to-disk', type=bool, help="save Lidar data to disk", default=False)
-    
-  
-    args = arg_parser.parse_args(args) 
-    lidarTest = ObstacleAvoidance()
-    try:
-        lidarTest.execute()
-    except KeyboardInterrupt:
-        lidarTest.stop()
-          
-    finally:
-        # lidarTest.display_lidar()
-        lidarTest.stop()
-
+        # arrived at goal
+        self.stopDrone()
+        print('Reached Goal')

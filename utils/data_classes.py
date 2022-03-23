@@ -10,6 +10,7 @@
 
 from dataclasses import dataclass
 from math import sqrt
+from enum import Enum, unique
 
 
 @dataclass
@@ -137,3 +138,11 @@ class MovementCommand():
     speed: float = 5.0 # meters / second
     priority: int = 1
     move_by: str = "position"
+
+@unique
+class OASystemStates(Enum):
+    GROUNDED = 1
+    PATH_PLANNING = 2
+    CLEARANCE = 3
+    SLOPE = 4
+    WALLTRACE = 5
