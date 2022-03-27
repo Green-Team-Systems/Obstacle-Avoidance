@@ -156,8 +156,17 @@ class ObstacleAvoidance(Process):
                 #Call Harrisons Algo here
                 if(self.state != OASystemStates.CLEARANCE):
                     if(position.Z > 120):
-                        WallTrace.execute(data) #run Josh algo
+                        angle, x_vel, y_vel, z_vel = WallTrace.execute(data) #run Josh algo
                         self.state = OASystemStates.WALLTRACE
+                        command = MovementCommand(
+                            velocity=VelVec3(
+                                vx=x_vel,
+                                vy=y_vel,
+                                vz=-1 * z_vel 
+                            ),
+                            move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
+                        )
+                        self.path_planning_queue.put(command)
                     else:
                         x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
                 # TODO Add state switching logic
@@ -178,8 +187,7 @@ class ObstacleAvoidance(Process):
                             move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
                         )
                         self.path_planning_queue.put(command)
-                elif self.state == OASystemStates.WALLTRACE:
-                    pass
+
                 
                 # Run at 20 hertz
                 time.sleep(0.04)

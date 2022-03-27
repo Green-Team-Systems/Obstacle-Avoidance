@@ -89,93 +89,6 @@ class WallTrace:
                 y_points_last = xyz[1]
         return overall_point_list
 
-    """
-    Description: Turn drone towards goal asynchronous
-    
-    Inputs: self.vehicle_name, self.lidar_names
-    
-    Outputs: 
-    
-    Notes: Need to fix function to save coordinates in class
-    """
-
-    def turnTowardsGoalAsync(self):
-        print('turning towards goal')
-        dist = math.sqrt((self.destination[0]**2)+(self.destination[1]**2))
-        #theta = math.acos()
-        rotate = True
-        
-        
-        length = 5
-        kinematicsEstimated = self.client.getMultirotorState().kinematics_estimated
-        w_val, x_val, y_val, z_val = (kinematicsEstimated.orientation)
-        x_pos, y_pos, z_pos = (kinematicsEstimated.position)
-        roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
-        points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
-        # gps = self.client.getLidarData(lidar_name=self.lidar_names[0],self.vehicle_name=self.vehicle_name).pose.position
-        # print(gps)
-
-        u1 = self.destination[0] - x_pos
-        u2 = self.destination[1] - y_pos
-
-        v1 = points[0] - x_pos
-        v2 = points[1] - y_pos
-
-        angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
-        angleInDegrees = math.degrees(angleInRad)
-
-        # angle = self.angle_of_vectors()
-        #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, self.vehicle_name=self.vehicle_name).join()
-        self.client.rotateToYawAsync(angleInDegrees, timeout_sec=0.3, margin=0.1, vehicle_name=self.vehicle_name)
-        return angleInRad, angleInDegrees
-        
-    """
-    Description: Turn drone towards goal synchronous
-    
-    Inputs: self.vehicle_name, self.lidar_names
-    
-    Outputs: 
-    
-    Notes: Need to fix function to save coordinates in class
-    """
-
-    def turnTowardsGoalSynchronous(self):
-        print('turning towards goal')
-        dist = math.sqrt((self.destination[0]**2)+(self.destination[1]**2))
-        #theta = math.acos()
-        rotate = True
-        isTurning = True
-
-        # while rotate == True:
-        #airsim.types.EnvironmentState.position
-        # print(self.client.getMultirotorState().orientation)
-        
-        length = 5
-        # getter method updates this value
-        _estimated_kinematics = self.estimated_kinematics
-        w_val, x_val, y_val, z_val = (_estimated_kinematics.orientation)
-        x_pos, y_pos, z_pos = (_estimated_kinematics.position)
-        roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
-        points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
-        # gps = self.client.getLidarData(lidar_name=self.lidar_names[0],self.vehicle_name=self.vehicle_name).pose.position
-        # print(gps)
-
-        u1 = self.destination[0] - x_pos
-        u2 = self.destination[1] - y_pos
-
-        v1 = points[0] - x_pos
-        v2 = points[1] - y_pos
-
-        angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
-        angleInDegrees = math.degrees(angleInRad)
-
-        # angle = self.angle_of_vectors()
-        #self.client.moveByRollPitchYawrateThrottleAsync(0, 0, 0, 0.6, 0.3, self.vehicle_name=self.vehicle_name).join()
-        # print('started turning towards goal')
-        self.client.rotateToYawAsync(angleInDegrees, timeout_sec=0.2, margin=0.1, vehicle_name=self.vehicle_name).join()
-        # print('finished turning towards goal')
-        return angleInRad, angleInDegrees
-
     def getGoalAngle(self):
         print('turning towards goal')
         dist = math.sqrt((self.destination[0]**2)+(self.destination[1]**2))
@@ -238,41 +151,6 @@ class WallTrace:
      
         return roll_x, pitch_y, yaw_z # in radians            
 
-
-
-    def vision(self, overall_point_list):
-      
-        top_row = overall_point_list[1] # or 0?
-        midpoint_top_level_ind = int(len(overall_point_list[1]) / 2)
-        x_val = overall_point_list[1][midpoint_top_level_ind][0]
-        y_val = overall_point_list[1][midpoint_top_level_ind][1]
-        z_val = overall_point_list[1][midpoint_top_level_ind][2]
-
-        return x_val, y_val, z_val
-
-    def checkForCollision(self, collision_distance, overall_point_list):
-        #stop = False
-        
-        x_val, y_val, z_val = self.vision(overall_point_list)
-        # print(f"x val: {x_val}" )
-        # print(f"y val: {y_val}" )
-        # print(f"z val: {z_val}" )
-        if( x_val <= collision_distance):
-            # self.stopDrone()
-            return True
-        return False
-
-
-    def stop(self):
-
-        airsim.wait_key('Press any key to reset to original state')
-
-        self.client.armDisarm(False)
-        self.client.reset()
-
-        self.client.enableApiControl(False)
-        print("Done!\n")
-
     """
     Description: Find closest row parallel to the z level of the drone
     
@@ -300,88 +178,6 @@ class WallTrace:
 
         return i
 
-    """
-    Description: Produce a array of boolean values for each point in the row based on distance threshold
-    
-    Inputs: view_distance, overall_point_list, row_index
-    
-    Outputs: boolean array
-    
-    Notes: Used to find the obstacles location in relation to the drones FOV
-    """
-
-    def booleanArray_parser(self, view_distance, overall_point_list, row_index):
-        booleanArray = list()
-        midline = overall_point_list[row_index]
-
-        #trim midline to set 0s in boolean array where any pairs have x > 5
-        #trim y-values to only look at middle 50 points
-
-        # Array construction
-        x_list = []
-        for xval,yval,zval in midline:
-            x_list.append(xval)
-        
-        
-        for x in x_list:
-            if x < view_distance: # test narrower and shorter narrowview
-                booleanArray.append(1)
-            else:
-                # print ("appended 0")
-                booleanArray.append(0)
-        
-        midpoint_booleanArray_ind = int(len(booleanArray)/2) # Mid index
-
-        leftHalf_booleanArray = booleanArray[0:midpoint_booleanArray_ind]
-        rightHalf_booleanArray = booleanArray[midpoint_booleanArray_ind:len(booleanArray)]
-
-        # middle n points
-        offset = 50
-        narrow_view = booleanArray[midpoint_booleanArray_ind-offset:midpoint_booleanArray_ind+offset]
-        narrow_view = np.array(narrow_view)
-
-        return booleanArray, leftHalf_booleanArray, rightHalf_booleanArray, narrow_view
-
-    def split_list(self,thelist, delimiter):
-        ''' Split a list into sub lists, depending on a delimiter.
-        delimiters - item or tuple of item
-        '''
-        results = []
-        sublist = []
-        zeros = []
-        zero_sublist = []
-
-        for item in thelist:
-            if (item == delimiter):
-                if (len(sublist) > 0):
-                    print (sublist)
-                    results.append(sublist) # old one
-                zero_sublist.append(item)
-                
-                sublist = []            # new one
-            else:
-                if (len(zero_sublist) > 0):
-                    print (zero_sublist)
-                    zeros.append(zero_sublist)
-                sublist.append(item)
-                
-                zero_sublist = []
-
-        if sublist:  # last bit
-            results.append(sublist)
-            print (sublist)
-
-        if zero_sublist:
-            zeros.append(zero_sublist)
-            print (zero_sublist)
-
-
-        return results
-
-
-    def wall_drawer(self, booleanArray, chosen_row):
-        # print([list(j) for i, j in groupby(booleanArray)])
-        self.split_list(booleanArray, 0)
 
     """
     Description: detects gaps between points and returns row of lidar points with a gap symbol
@@ -421,25 +217,7 @@ class WallTrace:
 
 
         return filtered_row
-        
-
-    def calculate_slope(self, fixed_row):
-        #find left-most chunk of points between gaps
-
-        first_point = fixed_row[0]
-        last_point = fixed_row[0]
-        for ind, point in enumerate(fixed_row):
-            #this will break if a G is at the start of the row
-            if point == 'G':
-                last_point = fixed_row[ind - 1]
-            last_point = fixed_row[ind]
-        
-        slope = (last_point[1] - first_point[1]) / (last_point[0] - first_point[0])
-        #y = slope * x + firstpoint[1]  
-        return slope
-
-
-
+     
     """
     Description: Calculate the sum of the vectors from left to right
     
@@ -464,48 +242,6 @@ class WallTrace:
             sum_vector = [sum_vector[0] + vector[0], sum_vector[1] + vector[1]]
             
         return sum_vector
-
-
-    def follow_vector(self, vector):
-        
-
-        self.client.moveByVelocityBodyFrameAsync(vector[0], vector[1], 0, 0.3)
-        
-        
-
-        return
-
-    """
-    Description: Move forward until the lidar detects an obstacle
-    
-    Inputs: self.vehicle_name, lidar name
-    
-    Outputs: None
-    
-    Notes:
-    """
-
-    def approach(self):
-        collisioncheck = False
-        shouldMove = True
-        try:
-            while shouldMove==True:
-                
-                overall_point_list = self.scan(self.vehicle_name,self.lidar_names)
-                self.client.moveByVelocityBodyFrameAsync(3, 0, 0,0.1)
-                
-                collisioncheck = self.checkForCollision(5, overall_point_list)
-
-                # exit when collision into obstacle
-                if(collisioncheck == True):
-                    self.stopDrone()
-                    
-                    shouldMove = False
-                    
-        except KeyboardInterrupt:
-            airsim.wait_key('Press any key to stop running this script')
-            lidarTest.stop()
-            print("Done!\n")
 
     def normalize_vector(self, vector):
         
@@ -579,13 +315,6 @@ class WallTrace:
         
         return angleInRad, angleInDegrees
 
-          
-    def checkIfAtGoal(self):
-        #Todo: add some margin so it doesn't have to be at the exact coordinates of the goal
-        if (self.estimated_kinematics.position == self.destination):
-            return True
-        else:
-            return False
 
     """
     Description: Takes two vectors and returns the angle between them
@@ -639,24 +368,22 @@ class WallTrace:
         if (filtered_row is None):
             return
         sum_vector = self.calculate_object_sum_vector(fixedchosenRow)
-        print(f"Sum vector: {type(sum_vector)}")
         norm_sum_vector = self.normalize_vector(sum_vector)
         if(norm_sum_vector is [0,0]):
             return
-        print(f"Norm vector: {type(norm_sum_vector)}")
         vectorfromwall = self.vector_45_from_wall(norm_sum_vector)
-        print("Vector from wall: " + str(vectorfromwall))
         # get angle from drone to wall vector
         angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
-        print("Turning angle: " + str(angleInDegree))
-        # self.client.rotateToYawAsync(angleInDegree, timeout_sec=30, margin=0.1, vehicle_name=self.vehicle_name)
-        # self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
-        # self.follow_vector(norm_sum_vector)
-        
+
+        # TODO: how to pass yaw_mode parameter
+        self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
+
+        # self.client.moveByVelocityBodyFrameAsync(norm_sum_vector[0], norm_sum_vector[1], 0, 0.3)
         x_Vel = norm_sum_vector[0]
         y_Vel = norm_sum_vector[1]
         z_Vel = 0
         
+
         return angleInDegree, x_Vel, y_Vel, z_Vel
 
         
@@ -679,6 +406,7 @@ class WallTrace:
         #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
         fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
         
+        # filter lidar array to get only the points within a certain distance
         filtered_row = self.view_distance_filter(5, fixedchosenRow)
         if (filtered_row != [] and self.mode == self.STATES["Clear"]):
             self.mode = self.STATES["Obstacle"]
@@ -689,10 +417,12 @@ class WallTrace:
             
         
         if self.mode == "TOGOAL":
+            # turn to destination coordinates on the xy plane
             self.goToGoal()
         elif self.mode == "AVOID":
             angleInDegree, x_Vel, y_Vel, z_Vel = self.avoid(lidar_data)
 
+        # return angle in degrees, x_Vel, y_Vel, z_Vel
         return angleInDegree, x_Vel, y_Vel, z_Vel
             
 
