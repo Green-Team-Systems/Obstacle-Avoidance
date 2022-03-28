@@ -376,9 +376,9 @@ class WallTrace:
         angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
 
         # TODO: how to pass yaw_mode parameter
-        self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
+        # self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
 
-        # self.client.moveByVelocityBodyFrameAsync(norm_sum_vector[0], norm_sum_vector[1], 0, 0.3)
+        # self.client.moveByVelocityBodyFrameAsync(norm_sum_vector[0], norm_sum_vector[1], 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
         x_Vel = norm_sum_vector[0]
         y_Vel = norm_sum_vector[1]
         z_Vel = 0
