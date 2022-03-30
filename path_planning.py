@@ -8,6 +8,7 @@
 # =============================================================================
 
 from os import X_OK
+from tkinter import Y
 import traceback
 import setup_path
 import airsim
@@ -502,7 +503,8 @@ class PathPlanning(Process):
             self.last_position.X = command.position.X
             self.last_position.Y = command.position.Y
             self.last_position.Z = command.position.Z
-        elif command.move_by == "velocity":
+
+        elif command.move_by == "slope":
             # TODO Find a way to incorporate the previous velocities
             x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
             y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
@@ -515,13 +517,24 @@ class PathPlanning(Process):
                 "VZ": z_Vel,
             }
             heading = self.last_command.heading
+            
+        elif command.move_by == "trace":
+            x_Vel = command.velocity.vx
+            y_Vel = command.velocity.vy
+            z_Vel = command.velocity.vz
+            heading = command.heading
+            self.previous_velocities = {
+                "VX": x_Vel,
+                "VY": y_Vel,
+                "VZ": z_Vel,
+            }
+
         self.log.info("{}|{}|velocities|{}".format(
                                 datetime.utcnow(),
                                 self.drone_id,
                                 json.dumps([x_Vel, y_Vel, z_Vel])
                                 )
                             )
-        print(f'Z speed: {z_Vel}')
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,

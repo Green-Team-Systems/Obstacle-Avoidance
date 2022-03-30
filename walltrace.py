@@ -386,9 +386,6 @@ class WallTrace:
 
         return angleInDegree, x_Vel, y_Vel, z_Vel
 
-        
-       
-
     def goToGoal(self):
         #tuple[1] to get degrees
         goalAngle = self.getGoalAngle()[1]
@@ -418,7 +415,10 @@ class WallTrace:
         
         if self.mode == "TOGOAL":
             # turn to destination coordinates on the xy plane
-            self.goToGoal()
+            #self.goToGoal()
+            x_Vel = 0
+            y_Vel = 0
+            angleInDegree = 0
         elif self.mode == "AVOID":
             angleInDegree, x_Vel, y_Vel, z_Vel = self.avoid(lidar_data)
 

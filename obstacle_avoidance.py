@@ -10,6 +10,7 @@
 # =============================================================================
 
 from os import kill
+from turtle import heading
 import setup_path
 import airsim
 import logging
@@ -157,39 +158,47 @@ class ObstacleAvoidance(Process):
                 if(self.state != OASystemStates.CLEARANCE):
                     if(position.Z > 120):
                         angle, x_vel, y_vel, z_vel = WallTrace.execute(data) #run Josh algo
-                        self.state = OASystemStates.WALLTRACE
-                        command = MovementCommand(
+                        if x_vel != 0 and angle != 0:
+                            self.state = OASystemStates.WALLTRACE
+                        else: 
+                            self.state = OASystemStates.PATH_PLANNING
+                    else:
+                        x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
+                # TODO Add state switching logic
+                if self.state == OASystemStates.SLOPE:
+                    self.log.info(
+                            "{}|{}|vel_command|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dumps([x_vel,z_vel])
+                                )
+                            )
+                    command = MovementCommand(
+                        velocity=VelVec3(
+                            vx=x_vel,
+                            vz=-1 * z_vel # remeber that z is in ned corrdinate system so we have to inverse the speed of z velocity 
+                        ),
+                        move_by="slope" # creates a move by velocity command for the planner to use in deciding who controls the drone
+                    )
+                    self.path_planning_queue.put(command)
+                elif self.state == OASystemStates.WALLTRACE:
+                    self.log.info(
+                            "{}|{}|vel_command|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dumps([x_vel,y_vel,angle])
+                                )
+                            )
+                    command = MovementCommand(
                             velocity=VelVec3(
                                 vx=x_vel,
                                 vy=y_vel,
                                 vz=-1 * z_vel 
                             ),
-                            heading= angle,
-                            move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
+                            heading = angle,
+                            move_by="trace" # creates a move by velocity command for the planner to use in deciding who controls the drone
                         )
-                        self.path_planning_queue.put(command)
-                    else:
-                        x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
-                # TODO Add state switching logic
-                if self.state == OASystemStates.SLOPE:
-                    if self.publish_velocity: #slope caclulation returns 0 value when no points are deteced or the z value is to low so if statment to make sure not to call that command if z = 0
-                        self.log.info(
-                                "{}|{}|vel_command|{}".format(
-                                    datetime.utcnow(),
-                                    self.drone_id,
-                                    json.dumps([x_vel,z_vel])
-                                    )
-                                )
-                        command = MovementCommand(
-                            velocity=VelVec3(
-                                vx=x_vel,
-                                vz=-1 * z_vel # remeber that z is in ned corrdinate system so we have to inverse the speed of z velocity 
-                            ),
-                            move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
-                        )
-                        self.path_planning_queue.put(command)
-
-                
+                    self.path_planning_queue.put(command)
                 # Run at 20 hertz
                 time.sleep(0.04)
         except Exception as error:
