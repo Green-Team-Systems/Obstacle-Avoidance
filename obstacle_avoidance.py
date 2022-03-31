@@ -156,8 +156,9 @@ class ObstacleAvoidance(Process):
                 data = lidar_data.point_cloud
                 #Call Harrisons Algo here
                 if(self.state != OASystemStates.CLEARANCE):
-                    if(position.Z > 120):
+                    if(position.Z < 120):
                         angle, x_vel, y_vel, z_vel = WallTrace.execute(data) #run Josh algo
+                        print(x_vel)
                         if x_vel != 0 and angle != 0:
                             self.state = OASystemStates.WALLTRACE
                         else: 

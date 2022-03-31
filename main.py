@@ -51,7 +51,7 @@ if __name__ == "__main__":
     airsim_client = airsim.MultirotorClient()
     airsim_client.confirmConnection()
 
-    with open("trajectory.json", "r") as f:
+    with open("blocksTrajectory.json", "r") as f:
         trajectory = json.loads(f.read())
     if use_oa:
         for drone_id, queue, sensor_name in zip(drone_ids, path_planning_queues, lidar_ids):

@@ -509,8 +509,6 @@ class PathPlanning(Process):
             x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
             y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
             z_Vel = self.interpolate_z_vel(command.velocity.vz) + self.last_velocities.vz
-            print(f"last vel {self.last_velocities.vz}")
-            print(f"oa vel {command.velocity.vz}")
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
@@ -535,6 +533,7 @@ class PathPlanning(Process):
                                 json.dumps([x_Vel, y_Vel, z_Vel])
                                 )
                             )
+        print(z_Vel)
         self.airsim_client.moveByVelocityAsync(
                 x_Vel,
                 y_Vel,
