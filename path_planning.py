@@ -297,6 +297,7 @@ class PathPlanning(Process):
                     )
         # self.command_queue.join()
         while not killer.kill_now:
+            startTime = datetime.utcnow()
             # Check the queue for commands. Will block until message received.
             # self.receive_commands()
             # TODO Add a common inter-process message to either containerize
@@ -316,9 +317,7 @@ class PathPlanning(Process):
                     )
                     try:
                         assert isinstance(command, MovementCommand)
-                        
-                        if(self.check_for_new_command(command) == True):
-                            startTime = datetime.utcnow()
+
                         self.move_to_next_position(command, startTime)
                         # TODO Send back message on command completion
                         self.log.info(
