@@ -9,6 +9,8 @@
 # ===============================================================
 
 from dataclasses import dataclass
+import dataclasses
+from enum import Enum, unique
 from math import sqrt
 
 
@@ -65,6 +67,27 @@ class VelVec3:
     vx: float = 0.0
     vy: float = 0.0
     vz: float = 0.0
+
+
+@dataclass
+class AccelVec4:
+    """
+    Acceleration vector containing the acceleration to apply along the
+    roll, pitch and yaw angle rates, with a throttle position available
+    to provide the required thrust.
+
+    Units are meters / second / second.
+
+    Members:
+    - roll - angle rate around the x (front) axis
+    - pitch - angle rate around the y (side) axis
+    - yaw - angle rate around the z (up) axis
+    - throttle - ratio to apply around each axis
+    """
+    roll: float = 0.0
+    pitch: float = 0.0
+    yaw: float = 0.0
+    throttle: float = 0.0  # Must be between 0 and 1
 
 
 @dataclass
@@ -133,7 +156,55 @@ class MovementCommand():
     """
     position: PosVec3 = PosVec3()
     velocity: VelVec3 = VelVec3()
+    acceleration: AccelVec4 = AccelVec4()
     heading: float = 0.0 # degrees
     speed: float = 5.0 # meters / second
     priority: int = 1
     move_by: str = "position"
+
+
+@dataclass
+class Detection():
+    """
+    We generate a number of detections, whether through the AirSim
+    API or through a computer vision algorithm.
+
+    ## Inputs:
+    - position [PosVec3] X,Y,Z NED position in the local coordinate
+                         frame. Initialzied as X=0, Y=0, Z=0,
+                         Frame=Local
+    - heading [float] Yaw angle of drone, with inital heading being 0.0
+                      in Degrees
+    - speed [float] Speed to travel in the direction of travel in meters
+                    per second
+    """
+    position: PosVec3 = PosVec3()
+    gps_position: GPSPosVec3 = GPSPosVec3()
+    label: str = ""
+    timestamp: str = ""
+
+
+
+@unique
+class SystemModes(Enum):
+    GROUNDED = 1
+    OPERATIONAL = 2
+    BID = 3
+    AUCTION = 4
+    EXECUTE = 5
+
+
+@unique
+class PerceptionModes(Enum):
+    IDLE = 1
+    DETECTING = 2
+    PROCESSING = 3
+    SHUTDOWN = 4
+
+
+@unique
+class CurrentScenarios(Enum):
+    RENDEZVOUS = 1
+    FORMATION_CONTROL = 2
+    TASK_ALLOCATION = 3
+    SEARCH_FOLLOW = 4

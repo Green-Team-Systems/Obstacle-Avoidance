@@ -13,7 +13,7 @@ import airsim
 import logging
 import time
 import copy
-import numpy as np
+import traceback
 import math as m
 import json
 
@@ -295,17 +295,19 @@ class PathPlanning(Process):
                             "Beginning main path planning execution"
                         )
                     )
-        # self.command_queue.join()
         while not killer.kill_now:
             # Check the queue for commands. Will block until message received.
-            self.receive_commands()
+            # self.receive_commands()
             # TODO Add a common inter-process message to either containerize
             # the underlying set of messages or act as a header message for
             # the stream of messages.
             # TODO Add path planning algorithms for processing
             if self.simulation:
-                # We will wait for each command to be completed
-                for command in self.commands:
+                try:
+                    command = self.command_queue.get(
+                        block=True,
+                        timeout=0.0
+                        )
                     self.log.info("{}|{}|commanded_position|{}".format(
                         datetime.utcnow(),
                         self.drone_id,
@@ -314,8 +316,9 @@ class PathPlanning(Process):
                     try:
                         assert isinstance(command, MovementCommand)
                         
-                        if(self.check_for_new_command(command) == True):
+                        if(self.check_for_new_command(command)):
                             startTime = datetime.utcnow()
+                            continue
                         self.move_to_next_position(command, startTime)
                         # TODO Send back message on command completion
                         self.log.info(
@@ -325,15 +328,22 @@ class PathPlanning(Process):
                                 command
                                 )
                             )
-                        if command.move_by == "position":
-                            self.last_command = copy.deepcopy(command)
+                        
+                        self.last_command = copy.deepcopy(command)
                     except Exception as error:
+                        traceback.print_exc()
                         self.log.error("{}|{}|error|{}".format(
                             datetime.utcnow(),
                             self.drone_id,
                             error)
                         )
-                self.commands.clear()
+                # self.commands.clear()
+                except Empty:
+                    try:
+                        self.move_to_next_position(self.last_command, startTime)
+                        time.sleep(0.05)
+                    except Exception:
+                        pass
             else:
                 time.sleep(0.1)
         self.log.info("{}|{}|message|{}".format(
