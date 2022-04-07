@@ -318,7 +318,7 @@ class PathPlanning(Process):
                     try:
                         assert isinstance(command, MovementCommand)
                         
-                        if(self.check_for_new_command(command)):
+                        if(command.move_by == "position" and not self.check_for_new_command(command)):
                             startTime = datetime.utcnow()
                             continue
                         self.move_to_next_position(command, startTime)
