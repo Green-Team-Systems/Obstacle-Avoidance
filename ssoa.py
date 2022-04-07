@@ -21,6 +21,7 @@ import math as m
 
 from itertools import groupby
 from datetime import datetime
+import logging
 
 from airsim.types import YawMode
 from plot_ssoa import run_plot
@@ -381,11 +382,16 @@ class ClearPathObstacleAvoidance:
             startTime = datetime.utcnow()
             previous_waypoint_len = len(waypoint)
             print(current_pos)
+            logger.debug("Overall point lists: ".join(map(str, overall_point_list)))
         
 if __name__ == "__main__":
     
     print('Main accessed')
 
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(filename='logfile.log', filemode='w')
+    logger.setLevel(logging.DEBUG)
+    
     ssoa = ClearPathObstacleAvoidance()
     
     try:
