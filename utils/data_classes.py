@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import dataclasses
 from enum import Enum, unique
 from math import sqrt
+from enum import Enum, unique
 
 
 @dataclass
@@ -162,49 +163,10 @@ class MovementCommand():
     priority: int = 1
     move_by: str = "position"
 
-
-@dataclass
-class Detection():
-    """
-    We generate a number of detections, whether through the AirSim
-    API or through a computer vision algorithm.
-
-    ## Inputs:
-    - position [PosVec3] X,Y,Z NED position in the local coordinate
-                         frame. Initialzied as X=0, Y=0, Z=0,
-                         Frame=Local
-    - heading [float] Yaw angle of drone, with inital heading being 0.0
-                      in Degrees
-    - speed [float] Speed to travel in the direction of travel in meters
-                    per second
-    """
-    position: PosVec3 = PosVec3()
-    gps_position: GPSPosVec3 = GPSPosVec3()
-    label: str = ""
-    timestamp: str = ""
-
-
-
 @unique
-class SystemModes(Enum):
+class OASystemStates(Enum):
     GROUNDED = 1
-    OPERATIONAL = 2
-    BID = 3
-    AUCTION = 4
-    EXECUTE = 5
-
-
-@unique
-class PerceptionModes(Enum):
-    IDLE = 1
-    DETECTING = 2
-    PROCESSING = 3
-    SHUTDOWN = 4
-
-
-@unique
-class CurrentScenarios(Enum):
-    RENDEZVOUS = 1
-    FORMATION_CONTROL = 2
-    TASK_ALLOCATION = 3
-    SEARCH_FOLLOW = 4
+    PATH_PLANNING = 2
+    CLEARANCE = 3
+    SLOPE = 4
+    WALLTRACE = 5

@@ -29,19 +29,7 @@
           "HorizontalFOVEnd": 20,
           "DrawDebugPoints": false,
           "DataFrame": "SensorLocalFrame"
-        },
-        "Balls": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": -90, "Roll": 0,
-          "DrawDebugPoints": true
-        },   
-        "Cock": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": 0, "Roll": 0,
-          "DrawDebugPoints": true
-        }   
+        }
       },
       "X": 0,
       "Y": 0,

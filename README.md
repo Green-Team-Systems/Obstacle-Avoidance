@@ -1,5 +1,10 @@
 # Obstacle Avoidance - SWARM Simulation Platform
 
+##
+How To Open in windowed size: 
+1. Change to path C:\Users\vivek\Downloads\LandscapeMountains\LandscapeMountains\WindowsNoEditor
+2. Type the command LandscapeMountains.exe -WINDOWED -ResX=640 -ResY=480 
+
 ## Objective
 
 ## Setup
