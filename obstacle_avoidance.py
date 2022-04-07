@@ -197,7 +197,7 @@ class ObstacleAvoidance(Process):
                                 vz=-1 * z_vel 
                             ),
                             heading = angle,
-                            move_by="trace" # creates a move by velocity command for the planner to use in deciding who controls the drone
+                            move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
                         )
                     self.path_planning_queue.put(command)
                 # Run at 20 hertz

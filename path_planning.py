@@ -16,6 +16,7 @@ import logging
 import time
 import copy
 import traceback
+import numpy as np
 import math as m
 import json
 
@@ -504,20 +505,48 @@ class PathPlanning(Process):
             self.last_position.X = command.position.X
             self.last_position.Y = command.position.Y
             self.last_position.Z = command.position.Z
+            self.log.info("{}|{}|velocities|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dumps([x_Vel, y_Vel, z_Vel])
+                                )
+                            )
+            self.airsim_client.moveByVelocityAsync(
+                    x_Vel,
+                    y_Vel,
+                    z_Vel,
+                    m.inf,
+                    yaw_mode=YawMode(False,heading),
+                    vehicle_name=self.drone_id
+                )
 
         elif command.move_by == "slope":
             # TODO Find a way to incorporate the previous velocities
             x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
             y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
-            z_Vel = self.interpolate_z_vel(command.velocity.vz) + self.last_velocities.vz
+            z_Vel = self.interpolate_z_vel(command.velocity.vz)
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
                 "VZ": z_Vel,
             }
             heading = self.last_command.heading
+            self.log.info("{}|{}|velocities|{}".format(
+                                datetime.utcnow(),
+                                self.drone_id,
+                                json.dumps([x_Vel, y_Vel, z_Vel])
+                                )
+                            )
+            self.airsim_client.moveByVelocityAsync(
+                    x_Vel,
+                    y_Vel,
+                    z_Vel,
+                    m.inf,
+                    yaw_mode=YawMode(False,heading),
+                    vehicle_name=self.drone_id
+                )
             
-        elif command.move_by == "trace":
+        elif command.move_by == "velocity":
             x_Vel = command.velocity.vx
             y_Vel = command.velocity.vy
             z_Vel = command.velocity.vz
@@ -527,22 +556,46 @@ class PathPlanning(Process):
                 "VY": y_Vel,
                 "VZ": z_Vel,
             }
-
-        self.log.info("{}|{}|velocities|{}".format(
+            self.log.info("{}|{}|velocities|{}".format(
                                 datetime.utcnow(),
                                 self.drone_id,
                                 json.dumps([x_Vel, y_Vel, z_Vel])
                                 )
                             )
-        print(z_Vel)
-        self.airsim_client.moveByVelocityAsync(
-                x_Vel,
-                y_Vel,
-                z_Vel,
-                m.inf,
-                yaw_mode=YawMode(False,heading),
+            self.airsim_client.moveByVelocityAsync(
+                    x_Vel,
+                    y_Vel,
+                    z_Vel,
+                    m.inf,
+                    yaw_mode=YawMode(False,heading),
+                    vehicle_name=self.drone_id
+                )
+        elif command.move_by == "acceleration":
+            self.log.info("{}|{}|acceleration|{}".format(
+                                    datetime.utcnow(),
+                                    self.drone_id,
+                                    json.dumps(
+                                        [float(command.acceleration.roll),
+                                         float(command.acceleration.pitch),
+                                         float(command.acceleration.yaw),
+                                         float(command.acceleration.throttle)])
+                                    )
+                                )
+            if command.acceleration.throttle > 1.0:
+                command.acceleration.throttle = 1.0
+            elif command.acceleration.throttle < 0.0:
+                command.acceleration.throttle = 0.1
+
+            self.airsim_client.moveByAngleRatesThrottleAsync(
+                roll_rate=float(command.acceleration.roll),
+                pitch_rate=float(command.acceleration.pitch),
+                yaw_rate=float(command.acceleration.yaw),
+                throttle=float(command.acceleration.throttle),
+                duration=m.inf,
                 vehicle_name=self.drone_id
             )
+
+        
         return True
 
     def interpolate_z_vel(self, next_z_vel):
