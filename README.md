@@ -1,3 +1,3 @@
 # RRT
 
-Run the rrt_2d.py file
+Run the rrt_3d.py file
