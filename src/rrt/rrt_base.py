@@ -1,6 +1,8 @@
 import random
 
 import numpy as np
+import pandas
+
 
 from src.rrt.tree import Tree
 from src.utilities.geometry import steer
@@ -155,6 +157,9 @@ class RRTBase(object):
             current = self.trees[tree].E[current]
         path.append(x_init)
         path.reverse()
+        print(path)
+        pd = pandas.DataFrame(path)
+        pd.to_csv("path.csv")
         return path
 
     def check_solution(self):

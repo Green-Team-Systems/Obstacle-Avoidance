@@ -1,7 +1,7 @@
 # This file is subject to the terms and conditions defined in
 # file 'LICENSE', which is part of this source code package.
 import numpy as np
-from loadnp import obstaclesrrt
+from obstacle_conversion import obstaclesrrt
 from src.rrt.rrt import RRT
 from src.search_space.search_space import SearchSpace
 from src.utilities.plotting import Plot
@@ -11,8 +11,8 @@ X_dimensions = np.array([(0,100),(0,100),(0, 100)])
 # obstacles
 Obstacles = np.array(obstaclesrrt)
 
-x_init = (55, 0, 10)  # starting location
-x_goal = (59, 86, 80)  # goal location
+x_init= (20, 5, 55)  # starting location
+x_goal = (70, 80, 80)  # goal location
 
 Q = np.array([(2, 4)])  # length of tree edges
 r = 1  # length of smallest edge to check for intersection with obstacles
@@ -25,6 +25,8 @@ X = SearchSpace(X_dimensions, Obstacles)
 # create rrt_search
 rrt = RRT(X, Q, x_init, x_goal, max_samples, r, prc)
 path = rrt.rrt_search()
+
+
 
 # plot
 plot = Plot("rrt_3d")
