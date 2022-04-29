@@ -14,4 +14,5 @@ obstacle_conversion - Load the obstacles from a numpy to the RRT algorithm
 rrt_3d.py - Given an initial point and a goal location find the optimal path and print outs the coordinates of the trajectory. 
 
 Testing 
+
 Import any 3D numpy file to the obstacle_conversion and change the dimensions manually. Run the rrt_3d.py file by initializing any intial location and goal location without obstacles on line 14 and 15.
