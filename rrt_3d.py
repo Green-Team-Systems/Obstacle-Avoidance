@@ -14,7 +14,10 @@ Obstacles = np.array(obstaclesrrt)
 x_init= (20, 5, 55)  # starting location
 x_goal = (70, 80, 80)  # goal location
 
-Q = np.array([(2, 4)])  # length of tree edges
+#x_init = (20, 80, 55)  # goal location
+#x_goal = (90, 90, 56)  # starting location
+
+Q = np.array([(8, 4)])  # length of tree edges
 r = 1  # length of smallest edge to check for intersection with obstacles
 max_samples = 2000 # max number of samples to take before timing out
 prc = 0.1 # probability of checking for a connection to goal

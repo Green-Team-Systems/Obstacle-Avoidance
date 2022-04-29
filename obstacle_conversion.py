@@ -4,7 +4,7 @@
 # Created On: March 11th, 2022
 # Last Modified: April 25th, 2022
 # 
-# Description: Module to convert the obstacles in a voxel grid map to run in RRT algorithm 
+# Description: Module to convert the obstacles in a numpy map to run in RRT algorithm 
 # ========================================================================================
 
 import pandas
@@ -32,6 +32,7 @@ count = 0 # Keeping track of the coordinate points that belong to the same obsta
 temp = 0 # Temporary variable to save the count of the coordinates that belong to the same obstacle
 obs = [] # obstacle list
 templist = [] # Temporary variable for the obstacle list
+count_list = []
 
 # Outer most for loop that iterate over all the obstacles
 for i in range(len(obstacles)):
@@ -42,17 +43,27 @@ for i in range(len(obstacles)):
         else:
                 if ((obstacles[i-1][2]) + 1) == (obstacles[i][2]): # condition to check if the coordinates belongs to the same subsest of obstacle
                     count = count + 1 # increasing the count of the sequence
-                    templist.append(obstacles[i]) # appending the a subset of obstacles with the same consequence 
-                    i = i+1
-                    if (temp != 0):
-                        if (temp != count): # condition to check if the obstacle list belongs to the same subset of obstacles
-                            preobs = templist[-count:]
-                            del templist[-count:]
-                            obs.append(templist) # appending the subset of obstacles
-                            templist = [] # making a temporary list of the coordinate sequence of the obstacles
-                            templist = preobs # appending the obstacles 
-                    temp = count # storing the count of the sequence to a temporaray variable
-                    count = 0 # setting the count of the obstalce to zero
+                    if temp == 0:
+                        templist.append(obstacles[i])
+                        i = i+1
+                        temp = count # storing the count of the sequence to a temporaray variable
+                        count = 0 
+                        
+                    else:
+                        if ((obstacles[i - count][2] == obstacles[i][2])): # condtion to check if the obstacles are of the same consequence
+                                templist.append(obstacles[i]) # appending the a subset of obstacles with the same consequence 
+                                i = i+1
+                                if (temp != count): # condition to check if the obstacle list belongs to the same subset of obstacles
+                                        preobs = templist[-count:] # making a list of the obstacles of different sequence
+                                        del templist[-count:] # deleting the obstacles of different sequence
+                                        obs.append(templist) # appending the subset of obstacles
+                                        count_list.append(count) # appending the count of the sequence 
+                                        templist = [] # making a temporary list of the coordinate sequence of the obstacles
+                                        templist = preobs # appending the obstacles 
+                                temp = count # storing the count of the sequence to a temporaray variable
+                                count = 0 # setting the count of the obstalce to zero
+
+
     else:       
                 if ((obstacles[i-1][2]) + 1) == (obstacles[i][2]): # condition to check if the last obstacle in the list belong to a subset of obstacle
                     count = count + 1 # increasing the count of the sequence
@@ -62,22 +73,33 @@ for i in range(len(obstacles)):
                         preobs = templist[-count:]
                         del templist[-count:]
                         obs.append(templist)
+                        count_list[count]
                     else:
-                        obs.append(templist) # appending the obstacle to a temporary list
-
+                        obs.append(templist) # appending the obstacle to a list
+        
 
 obstaclesrrt = [] # making cuboides using the maximum and the minimum corner of the obstacle
+
+# saving the coordinates of the obstacles to a list
+pd = pandas.DataFrame(obs)
+pd.to_csv("obstacles.csv")
+
 # loop to iterate through the obstacles
+count = 0
 for i in obs:
         # listing all the coordinates of the obstacle
-        xs = [x[0] for x in i] 
+        xs = [x[0] for x in i]
         ys = [y[1] for y in i] 
         zs = [z[2] for z in i] 
 
+        # deleting the last sequence with a 0 in the y plane
+        if (ys[len(ys) - 1] == 0):
+            del ys[-(count_list[count]):]
+     
         # condition to check the maximum and the minium corner of the obstacle
         if (max(xs) > min(xs)) & (max(ys) > min(ys)) & (max(zs) > min(zs)):
-            obstaclesrrt.append((min(xs),min(ys),min(zs),max(xs),max(ys),max(zs))) # appending the obstacle to send to rrt algorithm if the maximum and the minimum corner are not the same
-    
+            obstaclesrrt.append((min(xs),min(ys),min(zs),max(xs),max(ys),max(zs))) # appending the obstacle to send to rrt algorithm if the maximum and the minimum corner are not the same        
+         
         else:
 
             max_xs = max(xs) 
@@ -92,8 +114,4 @@ for i in obs:
             if (max(zs) == min(zs)):
                 max_zs = min(zs) + 1
             obstaclesrrt.append((min(xs),min(ys),min(zs), max_xs,max_ys,max_zs))
-         
-# saving the coordinates of the obstacles to a list
-pd = pandas.DataFrame(obs)
-pd.to_csv("obstacles.csv")
-
+        count = count + 1
