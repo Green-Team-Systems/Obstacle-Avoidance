@@ -44,7 +44,7 @@ class LidarTest:
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
 
-    def calculate_velocities(self, x_error, y_error):
+    def calculate_velocities(self, x_error, y_error, z_error):
         """
         Calculates x and y velocities based off of the x and y error. 
         Stolen from Avi's code.
@@ -58,8 +58,6 @@ class LidarTest:
         :return x_vel, y_vel: returns a velocity in the x-direction and
             y-direction based off of the given error ---> m/s
         """
-
-        z_error = 0 # temp variable for integration
 
         kP = 0.4
         kI = 0.00
@@ -97,7 +95,7 @@ class LidarTest:
             "Z": z_error
         }
 
-        return x_vel, y_vel
+        return x_vel, y_vel, z_vel
 
     def apply_velocity_constraints(self, speed, z_val=False):
         """
@@ -142,40 +140,16 @@ class LidarTest:
                 yVelocity = 0
         else:
                 # Divides the lidarData into 3 seperate variables for x, y and z
-                y_points_last = 0
                 length = len(lidarData)
-                overall_point_list = list()
-                next_row = list()
+                mid_row = list()
                 for i in range(0, length, 3):
-                    xyz = lidarData[i:i+3]
-                    if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
-                        overall_point_list.append(next_row)
-                        next_row = list()
-                    next_row.append(xyz)
-                    y_points_last = xyz[1]
-
-                # find index of the middle row
-                top_row = overall_point_list[1]
-                mid_point_top_level_ind = int(len(top_row) / 2)
-                z_level_row = top_row[mid_point_top_level_ind][2] # initial z val of top row mid
-                index = 1
-
-                for row_index, row in enumerate(overall_point_list):
-                    if(len(row) > 0):
-                        mid_point = int(len(row) / 2) # index of mid point
-                        mid_point_z = row[mid_point][2] # z value of mid point
-                        if(abs(mid_point_z) < abs(z_level_row)):
-                            z_level_row = mid_point_z
-                            index = row_index
-
-                try:
-                    mid_row = overall_point_list[index]
-                except Exception:
-                    mid_row = []
+                    mid_row.append(lidarData[i:i+3])
                 
-                points_list = list()
-                target = np.zeros(2)
-                type = ''
+                heightData = self.client.getDistanceSensorData(distance_sensor_name = "Height")
+                height = heightData.distance
+                target = np.array([-999, -999, -999])
+                newTarget = np.zeros(3)
+                type = 'na'
 
                 # find critical points
                 for i in range(1, len(mid_row)):
@@ -187,51 +161,68 @@ class LidarTest:
                     if abs(yChange) > 2 and abs(xChange) < 10 and zBool:
                         points = np.array([mid_row[i-1][0], mid_row[i-1][1],
                             mid_row[i][0], mid_row[i][1]])
-                        target[0] = ((points[2] + points[0]) / 2) - 1
-                        target[1] = (points[3] + points[1]) / 2
+                        newTarget[0] = ((points[2] + points[0]) / 2) - 1
+                        newTarget[1] = (points[3] + points[1]) / 2
+                        newTarget[2] = mid_row[i-1][2]
                         width = abs(points[2] - points[0])
-                        if abs(target[1]) < 0.5 and width > 2:
-                            xVelocity = self.droneVelocity
-                            yVelocity = 0
-                        else:
-                            xVelocity, yVelocity = self.calculate_velocities(target[0], target[1])
-                        break
-                        
+                        distanceOld = math.sqrt(pow(target[1], 2) + pow(target[2], 2))
+                        distanceNew = math.sqrt(pow(newTarget[1], 2) + pow(newTarget[2], 2))
+                        criticalHeight = height <= 1 and newTarget[2] > 0
+                        if distanceNew < distanceOld and abs(target[1]) > 0.5 and width < 2 and not criticalHeight:
+                            target[0] = newTarget[0]
+                            target[1] = newTarget[1]
+                            target[2] = newTarget[2]
+                            type = 'yd'
 
                     elif xChange > 5 and mid_row[i-1][0] > 5 and zBool:
-                        target[0] = mid_row[i-1][0]
-                        target[1] = mid_row[i-1][1] + 2
-                        if abs(target[1]) < 1:
-                            xVelocity = self.droneVelocity
-                            yVelocity = 0
-                        else:
-                            xVelocity, yVelocity = self.calculate_velocities(target[0], target[1])
-                        break
-                    
+                        newTarget[0] = mid_row[i-1][0]
+                        newTarget[1] = mid_row[i-1][1] + 2
+                        newTarget[2] = mid_row[i-1][2]
+                        distanceOld = math.sqrt(pow(target[1], 2) + pow(target[2], 2))
+                        distanceNew = math.sqrt(pow(newTarget[1], 2) + pow(newTarget[2], 2))
+                        criticalHeight = height <= 1 and newTarget[2] > 0
+                        if distanceNew < distanceOld and abs(target[1]) > 1 and type != 'yd' and not criticalHeight:
+                            target[0] = newTarget[0] 
+                            target[1] = newTarget[1]
+                            target[2] = newTarget[2]
+                            type = 'xj'
+
                     elif xChange < -5 and mid_row[i][0] > 5 and zBool:
-                        target[0] = mid_row[i-1][0]
-                        target[1] = mid_row[i-1][1] - 2
-                        if abs(target[1]) < 1:
-                            xVelocity = self.droneVelocity
-                            yVelocity = 0
-                        else:
-                            xVelocity, yVelocity = self.calculate_velocities(target[0], target[1])
-                        break
+                        newTarget[0] = mid_row[i-1][0]
+                        newTarget[1] = mid_row[i-1][1] - 2
+                        newTarget[2] = mid_row[i-1][2]
+                        distanceOld = math.sqrt(pow(target[1], 2) + pow(target[2], 2))
+                        distanceNew = math.sqrt(pow(newTarget[1], 2) + pow(newTarget[2], 2))
+                        criticalHeight = height <= 1 and newTarget[2] > 0
+                        if distanceNew < distanceOld and abs(target[1]) > 1 and type != 'yd' and not criticalHeight:
+                            target[0] = newTarget[0]
+                            target[1] = newTarget[1]
+                            target[2] = newTarget[2]
+                            type = 'xd'
+ 
+                if type == 'yd' or type == 'xd' or type == 'xj':
+                    xVelocity, yVelocity, zVelocity = self.calculate_velocities(target[0], target[1], target[2])
+                else:
+                    xVelocity, yVelocity, zVelocity = self.droneVelocity, 0, 0
 
                 try:
                     # prints velocities and targets
                     print(f'X speed: {xVelocity}')
                     print(f'Y speed: {yVelocity}')
+                    print(f'Z speed: {zVelocity}')
                     print(f'X target: {target[0]}')
                     print(f'Y target: {target[1]}')
+                    print(f'Z target: {target[2]}')
+                    print(f'Type: {type}')
 
                 # runs if points_list is empty
                 except Exception:
                     xVelocity = 5
                     yVelocity = 0
+                    zVelocity = 0
                     print('exception')
 
-        return xVelocity, yVelocity
+        return xVelocity, yVelocity, zVelocity
 
     def execute(self):
         """
@@ -271,9 +262,9 @@ class LidarTest:
             lidar_data = self.client.getLidarData()
             data = lidar_data.point_cloud
 
-            x_vel, y_vel = self.detectCorners(data) # takes the data as one parameter and 10 is drone speed user inputs
+            x_vel, y_vel, z_vel = self.detectCorners(data) # takes the data as one parameter and 10 is drone speed user inputs
 
-            self.client.moveByVelocityAsync(x_vel, y_vel, 0, math.inf)
+            self.client.moveByVelocityAsync(x_vel, y_vel, z_vel, math.inf)
             time.sleep(0.01)
 
     def parse_lidarData(self, data):

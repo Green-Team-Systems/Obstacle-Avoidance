@@ -173,9 +173,9 @@ class LidarTest:
                 except Exception:
                     mid_row = []
                 
-                points_list = list()
-                target = np.zeros(2)
-                type = ''
+                target = np.array([-999, -999])
+                newTarget = np.zeros(2)
+                type = 'na'
 
                 # find critical points
                 for i in range(1, len(mid_row)):
@@ -187,36 +187,34 @@ class LidarTest:
                     if abs(yChange) > 2 and abs(xChange) < 10 and zBool:
                         points = np.array([mid_row[i-1][0], mid_row[i-1][1],
                             mid_row[i][0], mid_row[i][1]])
-                        target[0] = ((points[2] + points[0]) / 2) - 1
-                        target[1] = (points[3] + points[1]) / 2
+                        newTarget[0] = ((points[2] + points[0]) / 2) - 1
+                        newTarget[1] = (points[3] + points[1]) / 2
                         width = abs(points[2] - points[0])
-                        if abs(target[1]) < 0.5 and width > 2:
-                            xVelocity = self.droneVelocity
-                            yVelocity = 0
-                        else:
-                            xVelocity, yVelocity = self.calculate_velocities(target[0], target[1])
-                        break
-                        
+                        if abs(newTarget[1]) < abs(target[1]) and abs(target[1]) > 0.5 and width < 2:
+                            target[0] = newTarget[0]
+                            target[1] = newTarget[1]
+                            type = 'yd'
 
                     elif xChange > 5 and mid_row[i-1][0] > 5 and zBool:
-                        target[0] = mid_row[i-1][0]
-                        target[1] = mid_row[i-1][1] + 2
-                        if abs(target[1]) < 1:
-                            xVelocity = self.droneVelocity
-                            yVelocity = 0
-                        else:
-                            xVelocity, yVelocity = self.calculate_velocities(target[0], target[1])
-                        break
-                    
+                        newTarget[0] = mid_row[i-1][0]
+                        newTarget[1] = mid_row[i-1][1] + 2
+                        if abs(newTarget[1]) < abs(target[1]) and abs(target[1]) > 1 and type != 'yd':
+                            target[0] = newTarget[0] 
+                            target[1] = newTarget[1]
+                            type = 'xj'
+
                     elif xChange < -5 and mid_row[i][0] > 5 and zBool:
-                        target[0] = mid_row[i-1][0]
-                        target[1] = mid_row[i-1][1] - 2
-                        if abs(target[1]) < 1:
-                            xVelocity = self.droneVelocity
-                            yVelocity = 0
-                        else:
-                            xVelocity, yVelocity = self.calculate_velocities(target[0], target[1])
-                        break
+                        newTarget[0] = mid_row[i-1][0]
+                        newTarget[1] = mid_row[i-1][1] - 2 
+                        if abs(newTarget[1]) < abs(target[1]) and abs(target[1]) > 1 and type != 'yd':
+                            target[0] = newTarget[0]
+                            target[1] = newTarget[1]
+                            type = 'xd'
+ 
+                if type == 'yd' or type == 'xd' or type == 'xj':
+                    xVelocity, yVelocity = self.calculate_velocities(target[0], target[1])
+                else:
+                    xVelocity, yVelocity = self.droneVelocity, 0
 
                 try:
                     # prints velocities and targets
@@ -224,6 +222,7 @@ class LidarTest:
                     print(f'Y speed: {yVelocity}')
                     print(f'X target: {target[0]}')
                     print(f'Y target: {target[1]}')
+                    print(f'Type: {type}')
 
                 # runs if points_list is empty
                 except Exception:
