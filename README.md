@@ -7,6 +7,14 @@ This module is designed to find the most optimal (short) path to a destination  
 1. Numpy 3D Boolean array sent by mapping
 2. Starting point and Ending Point
 
+Module Needed
+
+1. Install Numpy
+2. Install plotly
+3. Install pandas
+4. Install rtree
+5. Install random
+
 Relevant Files 
 
 3darr.npy - A 3D numpy of a voxel grid map
