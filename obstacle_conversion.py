@@ -73,9 +73,10 @@ for i in range(len(obstacles)):
                         preobs = templist[-count:]
                         del templist[-count:]
                         obs.append(templist)
-                        count_list[count]
+                        count_list.append(count)
                     else:
-                        obs.append(templist) # appending the obstacle to a list
+                        obs.append(templist)
+                        count_list.append(count) # appending the obstacle to a list
         
 
 obstaclesrrt = [] # making cuboides using the maximum and the minimum corner of the obstacle
