@@ -10,7 +10,9 @@ This module is designed to find the most optimal (short) path to a destination  
 Relevant Files 
 
 3darr.npy - A 3D numpy of a voxel grid map
+
 obstacle_conversion - Load the obstacles from a numpy to the RRT algorithm
+
 rrt_3d.py - Given an initial point and a goal location find the optimal path and print outs the coordinates of the trajectory. This is an existing 3D algorithm with modified parameters. 
 
 Testing 
