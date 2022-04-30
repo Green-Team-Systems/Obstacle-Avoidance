@@ -7,7 +7,7 @@ This module is designed to find the most optimal (short) path to a destination  
 1. Numpy 3D Boolean array sent by mapping
 2. Starting point and Ending Point
 
-Module Needed
+Modules Needed
 
 1. Install Numpy
 2. Install plotly
