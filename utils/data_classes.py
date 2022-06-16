@@ -9,6 +9,8 @@
 # ===============================================================
 
 from dataclasses import dataclass
+import dataclasses
+from enum import Enum, unique
 from math import sqrt
 from enum import Enum, unique
 
@@ -66,6 +68,27 @@ class VelVec3:
     vx: float = 0.0
     vy: float = 0.0
     vz: float = 0.0
+
+
+@dataclass
+class AccelVec4:
+    """
+    Acceleration vector containing the acceleration to apply along the
+    roll, pitch and yaw angle rates, with a throttle position available
+    to provide the required thrust.
+
+    Units are meters / second / second.
+
+    Members:
+    - roll - angle rate around the x (front) axis
+    - pitch - angle rate around the y (side) axis
+    - yaw - angle rate around the z (up) axis
+    - throttle - ratio to apply around each axis
+    """
+    roll: float = 0.0
+    pitch: float = 0.0
+    yaw: float = 0.0
+    throttle: float = 0.0  # Must be between 0 and 1
 
 
 @dataclass
@@ -134,6 +157,7 @@ class MovementCommand():
     """
     position: PosVec3 = PosVec3()
     velocity: VelVec3 = VelVec3()
+    acceleration: AccelVec4 = AccelVec4()
     heading: float = 0.0 # degrees
     speed: float = 5.0 # meters / second
     priority: int = 1

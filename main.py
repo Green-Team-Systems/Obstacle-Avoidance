@@ -147,28 +147,29 @@ if __name__ == "__main__":
                     #print(dist_to_target)
                     arrived = True
                 else:
-                    for i, queue in enumerate(path_planning_queues):
-                        if i == 1:
-                            command = MovementCommand(
-                                position=PosVec3(
-                                    X=point["X"] - 2,
-                                    Y=point["Y"] - 2,
-                                    Z=point["Z"],
-                                ),
-                                heading=heading,
-                                priority=2
-                            )
-                        elif i == 2:
-                            command = MovementCommand(
-                                position=PosVec3(
-                                    X=point["X"] - 2,
-                                    Y=point["Y"] + 2,
-                                    Z=point["Z"],
-                                ),
-                                heading=heading,
-                                priority=2
-                            )
-                        queue.put(command)
+                    if len(path_planning_queues) > 1:
+                        for i, queue in enumerate(path_planning_queues):
+                            if i == 1:
+                                command = MovementCommand(
+                                    position=PosVec3(
+                                        X=point["X"] - 2,
+                                        Y=point["Y"] - 2,
+                                        Z=point["Z"],
+                                    ),
+                                    heading=heading,
+                                    priority=2
+                                )
+                            elif i == 2:
+                                command = MovementCommand(
+                                    position=PosVec3(
+                                        X=point["X"] - 2,
+                                        Y=point["Y"] + 2,
+                                        Z=point["Z"],
+                                    ),
+                                    heading=heading,
+                                    priority=2
+                                )
+                            queue.put(command)
                 count += 1
                 time.sleep(0.25)
     except Exception:
