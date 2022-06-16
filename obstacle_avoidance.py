@@ -158,14 +158,14 @@ class ObstacleAvoidance(Process):
                 if(self.state != OASystemStates.CLEARANCE):
                     if(position.Z < 120):
                         angle, x_vel, y_vel, z_vel = WallTrace.execute(data) #run Josh algo
-                        print(x_vel)
+                        print("Running Wall Trace")
                         if x_vel != 0 and angle != 0:
                             self.state = OASystemStates.WALLTRACE
                         else: 
                             self.state = OASystemStates.PATH_PLANNING
                     else:
                         x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
-                # TODO Add state switching logic
+                # TODO Add state switc''''hing logic
                 if self.state == OASystemStates.SLOPE:
                     self.log.info(
                             "{}|{}|vel_command|{}".format(

@@ -106,6 +106,20 @@ def position_to_list(position_vector,
         transform_to_global_coordinate_frame(position, starting_position)
         return position
 
+def vector_to_list(position_vector) -> list:
+    """
+    Given a vector from AirSim, generate a List to iterate
+    through.
+
+    Inputs:
+    - position_vector [AirSim Vector3] the x,y,z
+
+    Outputs:
+    List of x,y,z
+    """
+    return [position_vector.x_val,
+            position_vector.y_val,
+            position_vector.z_val]
 
 def gps_position_to_list(gps_vector) -> list:
     """

@@ -7,7 +7,7 @@
 # Description: Module for implementing movement commands to the Aircraft
 # =============================================================================
 
-from os import X_OK
+from os import X_OK, stat
 from tkinter import Y
 import traceback
 import setup_path
@@ -27,7 +27,9 @@ from utils.data_classes import PosVec3, MovementCommand, VelVec3
 from utils.killer_utils import GracefulKiller
 from airsim.types import YawMode
 from utils.distance_utils import ned_position_difference
-from utils.position_utils import position_to_list
+from utils.position_utils import position_list, position_to_list, vector_to_list
+from controls import PIDController
+
 # TODO Create status library
 
 
@@ -86,6 +88,7 @@ class PathPlanning(Process):
         self.last_position = PosVec3()
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
+        self.controls = PIDController()
         # TODO Add an inter-process queue between mapping and self
         FORMAT = '%(asctime)s %(message)s'
         # logging.basicConfig(format=FORMAT,
@@ -126,20 +129,38 @@ class PathPlanning(Process):
                                 "AirSim API connected!"
                                 )
                             )
+    
+    def distance_calculator(self, start, end, max_vel):
+        x_start, y_start, z_start = start
+        x_end, y_end, z_end = end
+        dist = m.sqrt((x_end - x_start)**2 + (y_end - y_start)**2 + (z_end - z_start)**2)
+        return dist / max_vel
 
-    def generate_trajectory(self, point, velocity, characteristics=[]):
-        """
 
-        """
-        # point (x,y,z)
-        # velocity
-        # characteristics = Sneaky, Loud, Specific height,
-        #                   Agressive vs. Conserative
-        # Sneaky - buffer distance
-        # Global creates a trajectory to that point
-        # Local handles obstacles between your current position and this point
-        # Local updates rapidly from the global map
-        pass
+    def generate_trajectory(self, max_vel, time_mult = 1.0):
+        data = np.loadtxt('test_trajectory.txt', delimiter=",", dtype='Float64')
+        position_trajectory = []
+        time_trajectory = [0]
+        yaw_trajectory = []
+        last_time = 0.0
+        current_time = time.time()
+
+        for i in range(len(data[:, 0])):
+            position_trajectory.append(data[i, 1:4])
+        for i in range(len(position_trajectory) - 1):
+            yaw_trajectory.append(np.arctan2(position_trajectory[i+1][1]-position_trajectory[i][1],position_trajectory[i+1][0]-position_trajectory[i][0]))
+        for i in range(1, len(position_trajectory)):
+            start = position_trajectory[i - 1]
+            end  = position_trajectory[i]
+            total_time = self.distance_calculator(start, end, max_vel)
+            total_time = total_time * time_mult + current_time
+            time_trajectory.append(total_time + last_time)      
+            last_time = total_time + last_time
+        yaw_trajectory.append(yaw_trajectory[-1])
+        
+        return position_trajectory, time_trajectory, yaw_trajectory
+
+
 
     def local_path_trajectory(self):
         # Update rate (defined by our sensor)
@@ -452,6 +473,72 @@ class PathPlanning(Process):
         elif z_val and speed < -threshold:
             speed = -threshold
         return speed
+    
+    def trajectory_copier(self):
+        self.position_trajectory, self.time_trajectory, self.yaw_trajectory = self.generate_trajectory(10)
+    
+    def roll_pitch_yaw(self):
+        state = self.airsim_client.simGetVehiclePose(vehicle_name=self.drone_id)
+        pitch, roll, yaw = airsim.to_eularian_angles(state.simGetVehiclePose().orientation)
+
+        return [roll, pitch, yaw]
+
+    def drone_telemetry(self):
+        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
+        self.drone_position = vector_to_list(state.kinematics_estimated.position)
+        self.drone_velocity = vector_to_list(state.kinematics_estimated.linear_velocity)
+        self.drone_attitude = self.roll_pitch_yaw()
+        self.drone_gyro = vector_to_list(state.kinematics_estimated.angular_acceleration)
+
+    def position_controller(self):
+        (self.local_position_target,
+         self.local_velocity_target,
+         yaw_cmd) = self.controls.trajectory_control(
+                self.position_trajectory,
+                self.yaw_trajectory,
+                self.time_trajectory, time.time())
+        self.attitude_target = np.array((0.0, 0.0, yaw_cmd))
+        acceleration_cmd = self.controls.lateral_position_control(
+                self.local_position_target[0:2],
+                self.local_velocity_target[0:2],
+                self.drone_position[0:2],
+                self.drone_velocity[0:2])
+        self.local_acceleration_target = np.array([acceleration_cmd[0],
+                                                   acceleration_cmd[1],
+                                                   0.0])
+
+    def attitude_controller(self):
+        self.thrust_cmd = self.controls.altitude_control(
+                self.local_position_target[2],
+                self.local_velocity_target[2],
+                self.drone_position[2],
+                self.drone_velocity[2],
+                self.drone_attitude,
+                9.81)
+        roll_pitch_rate_cmd = self.controls.roll_pitch_controller(
+                self.local_acceleration_target[0:2],
+                self.drone_attitude,
+                self.thrust_cmd)
+        yawrate_cmd = self.controls.yaw_control(
+                self.attitude_target[2],
+                self.drone_attitude[2])
+        self.body_rate_target = np.array(
+                [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
+
+    def bodyrate_controller(self):
+        self.moment_cmd = self.controls.body_rate_control(
+                self.body_rate_target,
+                self.drone_gyro)
+    
+    def control_drone(self):
+        self.airsim_client.moveByRollPitchYawrateThrottleAsync(
+            self.moment_cmd[0], 
+            self.moment_cmd[1], 
+            self.moment_cmd[2], 
+            self.thrust_cmd, 
+            m.inf, 
+            vehicle_name=self.drone_id
+        )
 
     def move_to_next_position(self, command: MovementCommand, startTime) -> bool:
         """
