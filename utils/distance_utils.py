@@ -62,3 +62,10 @@ def ned_position_difference(first_pos: PosVec3,
                             second_pos: PosVec3) -> float:
     return math.sqrt(pow((first_pos.X - second_pos.X), 2)
                      + pow((first_pos.Y - second_pos.Y), 2))
+
+
+def ned_position_difference_x_y_only(first_pos: PosVec3,
+                                     second_pos: PosVec3) -> float:
+    return math.sqrt(pow((first_pos.X - second_pos.X), 2)
+                     + pow((first_pos.Y - second_pos.Y), 2)
+                    )

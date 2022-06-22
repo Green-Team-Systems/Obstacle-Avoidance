@@ -8,9 +8,14 @@
 # Description: Methods to control the position of the drones
 # ===============================================================
 import time
+import traceback
+import airsim
 
-from utils.data_classes import PosVec3
+from utils.data_classes import PosVec3, VelVec3
+from airsim import MultirotorClient
+from numpy import arctan2, degrees
 
+PRECISION = 8
 
 def enable_control(client, drones: list) -> None:
     """
@@ -106,20 +111,6 @@ def position_to_list(position_vector,
         transform_to_global_coordinate_frame(position, starting_position)
         return position
 
-def vector_to_list(position_vector) -> list:
-    """
-    Given a vector from AirSim, generate a List to iterate
-    through.
-
-    Inputs:
-    - position_vector [AirSim Vector3] the x,y,z
-
-    Outputs:
-    List of x,y,z
-    """
-    return [position_vector.x_val,
-            position_vector.y_val,
-            position_vector.z_val]
 
 def gps_position_to_list(gps_vector) -> list:
     """
@@ -148,9 +139,9 @@ def gps_velocity_to_list(velocity_vector) -> list:
     Outputs:
     List of x,y,z velocity
     """
-    return [velocity_vector.x_val,
-            velocity_vector.y_val,
-            velocity_vector.z_val]
+    return VelVec3(vx=velocity_vector.x_val,
+            vy=velocity_vector.y_val,
+            vz=velocity_vector.z_val)
 
 
 def fly_to_new_positions(client, drones: dict) -> None:
@@ -211,7 +202,7 @@ def transform_to_standard_basis_coordinates(current_pos: list,
                                             start_pos: list) -> None:
     current_pos[0] += start_pos[0]
     current_pos[1] += start_pos[1]
-    current_pos[2] -= start_pos[2]
+    current_pos[2] += start_pos[2]
 
 
 
@@ -240,7 +231,7 @@ def transform_to_relative_basis_coordinates(current_pos: list,
                                             start_pos: list) -> None:
     current_pos[0] -= start_pos[0]
     current_pos[1] -= start_pos[1]
-    current_pos[2] += start_pos[2]
+    # current_pos[2] += start_pos[2]
 
 
 # TODO This should be a main process function that just prints out
@@ -272,7 +263,7 @@ def update_drone_position(client, drone: dict):
     drone["pos_vec3"] = position_to_list(
         state_data.kinematics_estimated.position)
 
-def update_drone_position(client, drone: dict):
+def update_drone_position(client: airsim.MultirotorClient, drone: dict, heading: float):
     """
     Update a single drone's position.
 
@@ -282,9 +273,11 @@ def update_drone_position(client, drone: dict):
     """
     state_data = client.getMultirotorState(vehicle_name=drone["drone_name"])
     position = state_data.kinematics_estimated.position
+    heading = quaternion_to_yaw(state_data.kinematics_estimated.orientation)
     drone["pos_vec3"] = [position.x_val,
                          position.y_val,
                          position.z_val]
+    return state_data.collision.has_collided, heading
 
 
 def update_all_drone_positions_for_camera(client, drones: dict):
@@ -304,6 +297,28 @@ def update_all_drone_positions_for_camera(client, drones: dict):
                                           position.y_val,
                                           position.z_val]
 
+
+def update_all_drone_positions_for_scenario(client, drones: dict):
+    """
+    Update the position struct for all drones in the swarm, so that
+    the recording drone can average their positions and move to that
+    direction.
+
+    Inputs:
+    - client [AirSim] AirSim client to communicate with the sim
+    - drone [dict] dictionary of information for the drone.
+    """
+    for drone_name in drones.keys():
+        state_data = client.getMultirotorState(vehicle_name=drone_name)
+        position = state_data.kinematics_estimated.position
+        new_pos = [
+            position.x_val ,
+            position.y_val ,
+            position.z_val
+        ]
+        drones[drone_name]["pos_vec3"] = new_pos
+
+
 def average_drone_positions_for_camera(camera_position: dict,
                                        swarm_positions: dict) -> list:
     x = 0.0
@@ -321,6 +336,45 @@ def average_drone_positions_for_camera(camera_position: dict,
 
     x = x / numb_drones
     y = y / numb_drones
-    z = -50
+    z = z / numb_drones
 
     return [x,y,z]
+
+
+def update_human_position(client: MultirotorClient,
+                          position: PosVec3,
+                          name: str) -> None:
+    """
+    Get the current position of the human and find the POSE of that
+    human in the environment.
+
+    ## Inputs:
+    - position [PosVec3] Current position of the human
+    - name [str] the name of the human in UE
+
+    ## Outputs:
+    - None
+    """
+    try:
+        pose = client.simGetObjectPose(name)
+        current_position = pose.position
+        position.X = current_position.x_val
+        position.Y = current_position.y_val
+        position.Z = current_position.z_val
+    except Exception:
+        traceback.print_exc()
+
+
+    return
+
+
+def quaternion_to_yaw(q: airsim.Quaternionr) -> float:
+    """
+    Reference:
+
+    https://stackoverflow.com/questions/5782658/extracting-yaw-from-a-quaternion
+    """
+    return degrees(arctan2(
+        2.0 * (q.y_val * q.x_val + q.w_val * q.z_val),
+        -1.0 + 2.0 * (q.w_val * q.w_val)
+        - (q.x_val * q.x_val)))

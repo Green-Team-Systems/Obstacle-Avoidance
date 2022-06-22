@@ -9,10 +9,8 @@
 # ===============================================================
 
 from dataclasses import dataclass
-import dataclasses
 from enum import Enum, unique
 from math import sqrt
-from enum import Enum, unique
 
 
 @dataclass
@@ -137,6 +135,24 @@ class Quaternion:
 
 
 @dataclass
+class Orientation:
+    """
+    Current orientation of the vehicle, as given by a set of angles in 
+    the NED coordinate frame (Roll, Pitch, Yaw) and a quaternion
+
+    Members:
+    - roll - angle rate around the x (front/back) axis
+    - pitch - angle rate around the y (side) axis
+    - yaw - angle rate around the z (up/down) axis
+    - quat [Quaternion] - Rotatation device
+    """
+    roll: float = 0.0
+    pitch: float = 0.0
+    yaw: float = 0.0
+    quat: Quaternion = Quaternion()
+
+
+@dataclass
 class MovementCommand():
     """
     AirSim requires a Movement command, which contains a number of
@@ -170,3 +186,8 @@ class OASystemStates(Enum):
     CLEARANCE = 3
     SLOPE = 4
     WALLTRACE = 5
+
+@unique
+class TrajectoryType(Enum):
+    LINE = 1
+    BSPLINE = 2

@@ -3,34 +3,26 @@
 # Authors: Tyler Fedrizzi
 # Created On: September 6th, 2020
 # Last Modified: Septebmer 5th, 2021
-# 
+#
 # Description: Module for implementing movement commands to the Aircraft
 # =============================================================================
-
-from os import X_OK, stat
-from tkinter import Y
 import traceback
-import setup_path
-import airsim
 import logging
 import time
 import copy
-import traceback
 import numpy as np
 import math as m
 import json
 
 from multiprocessing import Process
+from queue import Queue
 from datetime import datetime
 from multiprocessing.queues import Empty
 
-from utils.data_classes import PosVec3, MovementCommand, VelVec3
+from utils.data_classes import Orientation, PosVec3, MovementCommand, VelVec3
 from utils.killer_utils import GracefulKiller
-from airsim.types import YawMode
-from utils.distance_utils import ned_position_difference
-from utils.position_utils import position_list, position_to_list, vector_to_list
-from controls import PIDController
-
+from utils.planning_utils import Planner
+from utils.airsim_utils import PoseAirSimConnector
 # TODO Create status library
 
 
@@ -49,7 +41,12 @@ class PathPlanning(Process):
                         AirSim or not
     """
 
-    def __init__(self, queue, drone_id, user_options=None, simulation=False):
+    def __init__(self,
+                 queue: Queue,
+                 drone_id: str,
+                 user_options: dict = None,
+                 simulation: bool = False,
+                 use_airsim: bool = True) -> None:
         Process.__init__(self, daemon=True)
         # This is a section of the global map defined by some radius
         # from the drone
@@ -64,10 +61,13 @@ class PathPlanning(Process):
         # Use the pre-built map and then use the FOV of the sensors to
         # user map so that they can use it.
         # Client to communicate with AirSim
-        self.airsim_client = None
+        if use_airsim:
+            self.airsim_connector = None
+            self.build_airsim_client = True
         # TODO Add status updates
         self.status = None
-        self.last_command = MovementCommand()
+        self.last_command = None
+        self.heading = float()
         self.last_velocities = VelVec3()
         self.commands = list()
         self.errors = {
@@ -81,137 +81,16 @@ class PathPlanning(Process):
             "Z": 0.0
         }
         self.previous_velocities = {
-                "VX": 0.0,
-                "VY": 0.0,
-                "VZ": 0.0,
-            }
+            "VX": 0.0,
+            "VY": 0.0,
+            "VZ": 0.0,
+        }
         self.error_count = 0
         self.last_position = PosVec3()
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
-        self.controls = PIDController()
         # TODO Add an inter-process queue between mapping and self
-        FORMAT = '%(asctime)s %(message)s'
-        # logging.basicConfig(format=FORMAT,
-         #                   level=logging.INFO)
-        file_handler = logging.FileHandler(
-            "logs/{drone_id}-Path-Planning-{date}.log".format(
-                drone_id=self.drone_id,
-                date="{}-{}-{}".format(
-                    datetime.utcnow().month,
-                    datetime.utcnow().day,
-                    datetime.utcnow().year,
-                )
-        ))
-        self.log = logging.getLogger(self.drone_id + __name__)
-        self.log.setLevel(logging.INFO)
-        self.log.addHandler(file_handler)
-
-    def build_airsim_client(self):
-        """
-        Generate the AirSim multirotor client, arming the vehicle
-        and enabling API control so that the vehicle is ready to take
-        commands from the user.
-
-        ## Inputs:
-        - None
-
-        ## Outputs:
-        - Assigns the multirotor client to the class airsim_client
-        variable.
-        """
-        self.airsim_client = airsim.MultirotorClient()
-        self.airsim_client.confirmConnection()
-        self.airsim_client.armDisarm(True, self.drone_id)
-        self.airsim_client.enableApiControl(True, self.drone_id)
-        self.log.info("{}|{}|message|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                "AirSim API connected!"
-                                )
-                            )
-    
-    def distance_calculator(self, start, end, max_vel):
-        x_start, y_start, z_start = start
-        x_end, y_end, z_end = end
-        dist = m.sqrt((x_end - x_start)**2 + (y_end - y_start)**2 + (z_end - z_start)**2)
-        return dist / max_vel
-
-
-    def generate_trajectory(self, max_vel, time_mult = 1.0):
-        data = np.loadtxt('test_trajectory.txt', delimiter=",", dtype='Float64')
-        position_trajectory = []
-        time_trajectory = [0]
-        yaw_trajectory = []
-        last_time = 0.0
-        current_time = time.time()
-
-        for i in range(len(data[:, 0])):
-            position_trajectory.append(data[i, 1:4])
-        for i in range(len(position_trajectory) - 1):
-            yaw_trajectory.append(np.arctan2(position_trajectory[i+1][1]-position_trajectory[i][1],position_trajectory[i+1][0]-position_trajectory[i][0]))
-        for i in range(1, len(position_trajectory)):
-            start = position_trajectory[i - 1]
-            end  = position_trajectory[i]
-            total_time = self.distance_calculator(start, end, max_vel)
-            total_time = total_time * time_mult + current_time
-            time_trajectory.append(total_time + last_time)      
-            last_time = total_time + last_time
-        yaw_trajectory.append(yaw_trajectory[-1])
-        
-        return position_trajectory, time_trajectory, yaw_trajectory
-
-
-
-    def local_path_trajectory(self):
-        # Update rate (defined by our sensor)
-        pass
-
-    def fly_to_new_position(self, position: PosVec3, velocity: float) -> None:
-        """
-        Fly to a new position, receiving the position either directly
-        from the main intelligence module or as a component of a path
-        planning algorithm.
-
-        Inputs:
-        - position [PosVec3] Position to move to, given as X, Y and Z
-                             coordinates relative to the body coord.
-                             frame of the aircraft.
-        - velocity [float] Forward velocity of the quad copter.
-        """
-        # z_coord = abs(position.Z)
-        self.airsim_client.moveToPositionAsync(
-            position.X,
-            position.Y,
-            position.Z,
-            velocity,
-            vehicle_name=self.drone_id)
-
-    def takeoff(self) -> None:
-        """
-        Command the UAV to takeoff by making the proper Async call to
-        AirSim.
-        The client call returns a future and we wait for that future to
-        resolve until we continue execution.
-
-        ## Inputs:
-        - None
-
-        ## Outputs:
-        - Informs the path planning module that the UAV is now
-        airborne.
-        """
-        droneTakeoff = self.airsim_client.takeoffAsync(
-            vehicle_name=self.drone_id)
-        droneTakeoff.join()
-        self.airborne = True
-        
-        self.log.info("{}|{}|message|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                "Takeoff Complete! System is airborne!"
-                                )
-                            )
+        self.planner = None
 
     def start(self):
         """
@@ -219,8 +98,8 @@ class PathPlanning(Process):
         """
         Process.start(self)
         # TODO Update status of operations
-    
-    def check_for_new_command(self, command: MovementCommand) -> bool:
+
+    def is_new_command(self, command: MovementCommand) -> bool:
         """
         Compare the current command to the previous command. If the
         commands are the same ignore that command because it was a
@@ -230,7 +109,7 @@ class PathPlanning(Process):
         TODO Implement some type of execution status that can be
              tracked by the Intel module so we don't get eroneous
              movement commands.
-            
+
         ## Inputs:
         - command [MovementCommand] The next NED local position to
                                     move to.
@@ -242,7 +121,7 @@ class PathPlanning(Process):
 
         if (command.position.X == self.last_command.position.X
             and command.position.Y == self.last_command.position.Y
-            and command.position.Z == self.last_command.position.Z):
+                and command.position.Z == self.last_command.position.Z):
             return False
         else:
             return True
@@ -275,8 +154,8 @@ class PathPlanning(Process):
             try:
                 self.commands.append(
                     self.command_queue.get(
-                    block=True,
-                    timeout=0.0
+                        block=True,
+                        timeout=0.0
                     )
                 )
             except Empty:
@@ -299,26 +178,62 @@ class PathPlanning(Process):
         TODO Refactor workflow to use ROS
         """
         Process.run(self)
+        FORMAT = '%(asctime)s %(message)s'
+        logging.basicConfig(format=FORMAT,
+                            level=logging.INFO)
+        file_handler = logging.FileHandler(
+            "logs/{drone_id}-Path-Planning-{date}.log".format(
+                drone_id=self.drone_id,
+                date="{}-{}-{}".format(
+                    datetime.utcnow().month,
+                    datetime.utcnow().day,
+                    datetime.utcnow().year,
+                )
+            ))
+        self.log = logging.getLogger(self.drone_id + __name__)
+        self.log.setLevel(logging.INFO)
+        self.log.addHandler(file_handler)
         killer = GracefulKiller()
 
-        if self.simulation:
-            self.build_airsim_client()
-
-        if not self.airborne and self.simulation:
-            self.takeoff()
+        if self.simulation and self.build_airsim_client:
+            self.airsim_connector = PoseAirSimConnector(
+                starting_position=PosVec3(),
+                starting_orientation=Orientation(),
+                log=self.log,
+                drone_id=self.drone_id
+            )
+            self.airsim_connector.build_airsim_client()
+            # Wait 1/2 second to get the system started
+            time.sleep(0.5)
+        self.planner = Planner(
+            self.airsim_connector.current_position,
+            self.airsim_connector.current_orientation,
+            self.log,
+            self.drone_id
+        )
+        if not self.airborne and self.simulation and self.build_airsim_client:
+            self.airsim_connector.takeoff()
         for _ in range(2):
             self.command_queue.put("Takeoff Completed")
+            time.sleep(0.001)
         # TODO What if there is a collision or error?
 
         # Main Execution
         self.log.info("{}|{}|message|{}".format(
-                            datetime.utcnow(),
-                            self.drone_id,
-                            "Beginning main path planning execution"
-                        )
-                    )
+            datetime.utcnow(),
+            self.drone_id,
+            "Beginning main path planning execution"
+        )
+        )
+        startTime = datetime.utcnow()
+        # self.command_queue.join()
         while not killer.kill_now:
-            startTime = datetime.utcnow()
+            # TODO This should be a thread that is used to grab the updated
+            # position from the GPS system or localization systems
+            self.airsim_connector.update_pose()
+            self.planner.current_position = self.airsim_connector.global_position
+            self.planner.orientation = self.airsim_connector.current_orientation
+            self.airsim_connector.propagate_pose()
             # Check the queue for commands. Will block until message received.
             # self.receive_commands()
             # TODO Add a common inter-process message to either containerize
@@ -330,78 +245,89 @@ class PathPlanning(Process):
                     command = self.command_queue.get(
                         block=True,
                         timeout=0.0
-                        )
-                    self.log.info("{}|{}|commanded_position|{}".format(
-                        datetime.utcnow(),
-                        self.drone_id,
-                        command)
                     )
                     try:
                         assert isinstance(command, MovementCommand)
-                        
-                        if(command.move_by == "position" and not self.check_for_new_command(command)):
-                            startTime = datetime.utcnow()
-                            continue
-                        self.move_to_next_position(command, startTime)
-                        # TODO Send back message on command completion
-                        self.log.info(
-                            "{}|{}|commanded_position_completed|{}".format(
+
+                        if (self.is_new_command(command) == True and command.move_by == "position"):
+                            self.log.info("{}|{}|commanded_position|{}".format(
                                 datetime.utcnow(),
                                 self.drone_id,
-                                command
-                                )
+                                command)
                             )
-                        
-                        self.last_command = copy.deepcopy(command)
-                    except Exception as error:
+                            self.last_command = copy.deepcopy(command)
+                            self.planner.current_goal = command.position
+                            self.last_command = command
+                            self.planner.current_position = self.airsim_connector.current_position
+                            self.planner.build_trajectory()
+                            if len(self.planner.trajectory) > 0:
+                                position = PosVec3(
+                                    X=self.planner.trajectory[0]["pos"].X,
+                                    Y=self.planner.trajectory[0]["pos"].Y,
+                                    Z=self.planner.trajectory[0]["pos"].Z)
+                                new_command = MovementCommand(position=position,
+                                                              heading=self.planner.trajectory[0]["heading"],
+                                                              move_by="position")
+                                self.move_to_next_position(
+                                    new_command, startTime)
+                        else:
+                            position = PosVec3(
+                                X=self.planner.trajectory[0]["pos"].X,
+                                Y=self.planner.trajectory[0]["pos"].Y,
+                                Z=self.planner.trajectory[0]["pos"].Z)
+                            new_command = MovementCommand(position=position,
+                                                          heading=self.planner.trajectory[0]["heading"],
+                                                          move_by="position")
+                            self.move_to_next_position(
+                                new_command, startTime)
+                        if len(self.planner.trajectory) > 0:
+                            self.planner.check_trajectory_progress()
+
+                    except Exception:
                         traceback.print_exc()
-                        self.log.error("{}|{}|error|{}".format(
-                            datetime.utcnow(),
-                            self.drone_id,
-                            error)
-                        )
                 # self.commands.clear()
                 except Empty:
                     try:
-                        self.move_to_next_position(self.last_command, startTime)
-                        time.sleep(0.05)
+                        if len(self.planner.trajectory) > 0:
+                            position = self.planner.trajectory[0]["pos"]
+                            new_command = MovementCommand(position=position,
+                                                          heading=self.planner.trajectory[0]["heading"],
+                                                          move_by="position")
+                            self.move_to_next_position(new_command, startTime)
+                        time.sleep(0.02)
                     except Exception:
                         pass
             else:
                 time.sleep(0.1)
         self.log.info("{}|{}|message|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                "Shutdown initiated!"
-                                )
-                            )
-        
+            datetime.utcnow(),
+            self.drone_id,
+            "Shutdown initiated!"
+        )
+        )
+
         # Clean shutdown by disarming and disabling API control
-        if self.simulation:
-            self.airsim_client.armDisarm(False, vehicle_name=self.drone_id)
-            self.airsim_client.enableApiControl(
-                False,
-                vehicle_name=self.drone_id
-            )
-            self.airsim_client.reset()
+        if self.simulation and self.build_airsim_client:
+            self.airsim_connector.shutdown()
+            time.sleep(0.5)
 
         self.log.info("{}|{}|message|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                "Shutdown completed!"
-                                )
-                            )
+            datetime.utcnow(),
+            self.drone_id,
+            "Shutdown completed!"
+        )
+        )
 
-    def calculate_velocities(self,target_pos, current_pos, command, startTime):
-        kP = 0.4
-        kI = 0.05
+    def calculate_velocities(self, target_pos, startTime):
+        kP = 0.40
+        kI = 0.00
         kD = 0.05
-        vMax = 20 
+        vMax = 20
         jMax = 25
         # print(target_pos.Z, current_pos.Z)
-        x_error = target_pos.X - current_pos.X
-        y_error = target_pos.Y - current_pos.Y
-        z_error = -1 * (target_pos.Z - current_pos.Z)
+        x_error = target_pos.X - self.airsim_connector.global_position.X
+        y_error = target_pos.Y - self.airsim_connector.global_position.Y
+        z_error = -1 * (target_pos.Z - self.airsim_connector.global_position.Z)
 
         # if(self.check_for_new_command(command) == True):
         #     startTime = datetime.utcnow()
@@ -410,6 +336,8 @@ class PathPlanning(Process):
         slew = (now - startTime).total_seconds()
         dt = (now - self.previous_time).total_seconds()
         self.previous_time = now
+        if dt == 0:
+            dt = 0.02
 
         x_derivative = (x_error - self.errors["X"]) / dt
         y_derivative = (y_error - self.errors["Y"]) / dt
@@ -423,22 +351,21 @@ class PathPlanning(Process):
             self.integral_error["X"] = 0
             self.integral_error["Y"] = 0
             self.integral_error["Z"] = 0
-            self.error_count = 0
         else:
             self.integral_error["X"] += x_error
             self.integral_error["Y"] += y_error
             self.integral_error["Z"] += z_error
 
         x_vel = (((x_error) * (kP))
-                + ((x_derivative) * (kD))
-                + ((x_integral) * (kI)))
+                 + ((x_derivative) * (kD))
+                 + ((x_integral) * (kI)))
         y_vel = (((y_error) * (kP))
-                + ((y_derivative) * (kD))
-                + ((y_integral) * (kI)))
+                 + ((y_derivative) * (kD))
+                 + ((y_integral) * (kI)))
         z_vel = -1 * (((z_error) * (kP))
-                    + ((z_derivative) * (kD))
-                    + ((z_integral) * (kI)))
-        
+                      + ((z_derivative) * (kD))
+                      + ((z_integral) * (kI)))
+
         # x_vel = self.slew(vMax, jMax, slew, x_vel)
         x_vel = self.apply_velocity_constraints(x_vel)
         y_vel = self.apply_velocity_constraints(y_vel)
@@ -451,96 +378,32 @@ class PathPlanning(Process):
         }
 
         return x_vel, y_vel, z_vel
-    
+
     def slew(self, vMax, jMax, now, currentVel):
         inflectionTime = m.sqrt(vMax / jMax)
-        totalTime = inflectionTime * 2 
+        totalTime = inflectionTime * 2
         vInflection = vMax / 2
         aMax = (totalTime * jMax) / 2
         if(now < inflectionTime):
             velocity = (jMax * m.pow(now, 2)) / 2
             print(f"velocity : {velocity}")
         elif(now <= totalTime and now >= inflectionTime):
-            velocity = vInflection + (aMax * (now - totalTime)) - ((jMax * pow((now - totalTime), 2)) / 2)
+            velocity = vInflection + \
+                (aMax * (now - totalTime)) - \
+                ((jMax * pow((now - totalTime), 2)) / 2)
             print(f"velocity : {velocity}")
         else:
             velocity = currentVel
         return velocity
 
     def apply_velocity_constraints(self, speed, z_val=False):
-        threshold = 19
+        threshold = 15
         # These constraints need to be read from a settings file
         if not z_val and speed > threshold:
             speed = threshold
         elif z_val and speed < -threshold:
             speed = -threshold
         return speed
-    
-    def trajectory_copier(self):
-        self.position_trajectory, self.time_trajectory, self.yaw_trajectory = self.generate_trajectory(10)
-    
-    def roll_pitch_yaw(self):
-        state = self.airsim_client.simGetVehiclePose(vehicle_name=self.drone_id)
-        pitch, roll, yaw = airsim.to_eularian_angles(state.simGetVehiclePose().orientation)
-
-        return [roll, pitch, yaw]
-
-    def drone_telemetry(self):
-        state = self.airsim_client.getMultirotorState(vehicle_name=self.drone_id)
-        self.drone_position = vector_to_list(state.kinematics_estimated.position)
-        self.drone_velocity = vector_to_list(state.kinematics_estimated.linear_velocity)
-        self.drone_attitude = self.roll_pitch_yaw()
-        self.drone_gyro = vector_to_list(state.kinematics_estimated.angular_acceleration)
-
-    def position_controller(self):
-        (self.local_position_target,
-         self.local_velocity_target,
-         yaw_cmd) = self.controls.trajectory_control(
-                self.position_trajectory,
-                self.yaw_trajectory,
-                self.time_trajectory, time.time())
-        self.attitude_target = np.array((0.0, 0.0, yaw_cmd))
-        acceleration_cmd = self.controls.lateral_position_control(
-                self.local_position_target[0:2],
-                self.local_velocity_target[0:2],
-                self.drone_position[0:2],
-                self.drone_velocity[0:2])
-        self.local_acceleration_target = np.array([acceleration_cmd[0],
-                                                   acceleration_cmd[1],
-                                                   0.0])
-
-    def attitude_controller(self):
-        self.thrust_cmd = self.controls.altitude_control(
-                self.local_position_target[2],
-                self.local_velocity_target[2],
-                self.drone_position[2],
-                self.drone_velocity[2],
-                self.drone_attitude,
-                9.81)
-        roll_pitch_rate_cmd = self.controls.roll_pitch_controller(
-                self.local_acceleration_target[0:2],
-                self.drone_attitude,
-                self.thrust_cmd)
-        yawrate_cmd = self.controls.yaw_control(
-                self.attitude_target[2],
-                self.drone_attitude[2])
-        self.body_rate_target = np.array(
-                [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
-
-    def bodyrate_controller(self):
-        self.moment_cmd = self.controls.body_rate_control(
-                self.body_rate_target,
-                self.drone_gyro)
-    
-    def control_drone(self):
-        self.airsim_client.moveByRollPitchYawrateThrottleAsync(
-            self.moment_cmd[0], 
-            self.moment_cmd[1], 
-            self.moment_cmd[2], 
-            self.thrust_cmd, 
-            m.inf, 
-            vehicle_name=self.drone_id
-        )
 
     def move_to_next_position(self, command: MovementCommand, startTime) -> bool:
         """
@@ -561,128 +424,96 @@ class PathPlanning(Process):
         """
         # TODO Add drivetrain once that is fixed
         if command.move_by == "position":
-            state = self.airsim_client.getMultirotorState(
-                vehicle_name=self.drone_id
-            )
-            position = position_to_list(
-                state.kinematics_estimated.position
-            )
             x_Vel, y_Vel, z_Vel = self.calculate_velocities(
                 command.position,
-                position,
-                command, 
                 startTime
             )
             if abs(z_Vel - self.last_velocities.vz) > 10 and self.last_command == "velocity":
                 z_Vel = self.last_velocities.vz
 
             heading = command.heading
-            
+
             # If we are step changing between velocities, cut it in half
             # if we exceed our threshold.
-            if abs(x_Vel - self.last_velocities.vx) > 5:
-                x_Vel = x_Vel / 2.0    
-            if abs(y_Vel - self.last_velocities.vy) > 5:
-                y_Vel = y_Vel / 2.0       
-            if abs(z_Vel - self.last_velocities.vz) > 5:
+            if abs(x_Vel - self.last_velocities.vx) > 10:
+                x_Vel = x_Vel / 2.0
+            elif abs(x_Vel - self.last_velocities.vx) > 5:
+                x_Vel = x_Vel / 1.5
+            if abs(y_Vel - self.last_velocities.vy) > 10:
+                y_Vel = y_Vel / 2.0
+            elif abs(y_Vel - self.last_velocities.vy) > 5:
+                y_Vel = y_Vel / 1.5
+            if abs(z_Vel - self.last_velocities.vz) > 10:
                 z_Vel = z_Vel / 2.0
+            elif abs(z_Vel - self.last_velocities.vz) > 5:
+                z_Vel = z_Vel / 1.5
             self.last_velocities.vx = x_Vel
             self.last_velocities.vy = y_Vel
             self.last_velocities.vz = z_Vel
             self.last_position.X = command.position.X
             self.last_position.Y = command.position.Y
             self.last_position.Z = command.position.Z
-            self.log.info("{}|{}|velocities|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dumps([x_Vel, y_Vel, z_Vel])
+            # heading = self.last_command.heading
+            """
+            
+            self.log.info("{}|{}|velocities|{}".format(# All agents start from their
+                                    datetime.utcnow(),
+                                    self.drone_id,
+                                    json.dumps([x_Vel, y_Vel, z_Vel])
+                                    )
                                 )
-                            )
-            self.airsim_client.moveByVelocityAsync(
-                    x_Vel,
-                    y_Vel,
-                    z_Vel,
-                    m.inf,
-                    yaw_mode=YawMode(False,heading),
-                    vehicle_name=self.drone_id
-                )
+            """
+            self.airsim_connector.velocity_command(xVel=x_Vel,
+                                                   yVel=y_Vel,
+                                                   zVel=z_Vel,
+                                                   speed=5,
+                                                   heading=heading)
 
-        elif command.move_by == "slope":
+        elif command.move_by == "velocity":
             # TODO Find a way to incorporate the previous velocities
-            x_Vel = self.last_velocities.vx + (command.velocity.vx * np.cos(np.radians(self.last_command.heading)))
-            y_Vel = self.last_velocities.vy + (command.velocity.vx * np.sin(np.radians(self.last_command.heading)))
+            x_Vel = self.last_velocities.vx + \
+                (command.velocity.vx * np.cos(np.radians(self.heading)))
+            y_Vel = self.last_velocities.vy + \
+                (command.velocity.vx * np.sin(np.radians(self.heading)))
             z_Vel = self.interpolate_z_vel(command.velocity.vz)
             self.previous_velocities = {
                 "VX": x_Vel,
                 "VY": y_Vel,
                 "VZ": z_Vel,
             }
-            heading = self.last_command.heading
-            self.log.info("{}|{}|velocities|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dumps([x_Vel, y_Vel, z_Vel])
-                                )
-                            )
-            self.airsim_client.moveByVelocityAsync(
-                    x_Vel,
-                    y_Vel,
-                    z_Vel,
-                    m.inf,
-                    yaw_mode=YawMode(False,heading),
-                    vehicle_name=self.drone_id
-                )
-            
-        elif command.move_by == "velocity":
-            x_Vel = command.velocity.vx
-            y_Vel = command.velocity.vy
-            z_Vel = command.velocity.vz
-            heading = command.heading
-            self.previous_velocities = {
-                "VX": x_Vel,
-                "VY": y_Vel,
-                "VZ": z_Vel,
-            }
-            self.log.info("{}|{}|velocities|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dumps([x_Vel, y_Vel, z_Vel])
-                                )
-                            )
-            self.airsim_client.moveByVelocityAsync(
-                    x_Vel,
-                    y_Vel,
-                    z_Vel,
-                    m.inf,
-                    yaw_mode=YawMode(False,heading),
-                    vehicle_name=self.drone_id
-                )
+
+            self.airsim_connector.velocity_command(xVel=x_Vel,
+                                                   yVel=y_Vel,
+                                                   zVel=z_Vel,
+                                                   speed=5,
+                                                   heading=heading)
         elif command.move_by == "acceleration":
             self.log.info("{}|{}|acceleration|{}".format(
-                                    datetime.utcnow(),
-                                    self.drone_id,
-                                    json.dumps(
-                                        [float(command.acceleration.roll),
-                                         float(command.acceleration.pitch),
-                                         float(command.acceleration.yaw),
-                                         float(command.acceleration.throttle)])
-                                    )
-                                )
+                datetime.utcnow(),
+                self.drone_id,
+                json.dumps(
+                    [float(command.acceleration.roll),
+                     float(command.acceleration.pitch),
+                     float(command.acceleration.yaw),
+                     float(command.acceleration.throttle)])
+            )
+            )
             if command.acceleration.throttle > 1.0:
                 command.acceleration.throttle = 1.0
             elif command.acceleration.throttle < 0.0:
                 command.acceleration.throttle = 0.1
 
-            self.airsim_client.moveByAngleRatesThrottleAsync(
-                roll_rate=float(command.acceleration.roll),
-                pitch_rate=float(command.acceleration.pitch),
-                yaw_rate=float(command.acceleration.yaw),
+            self.airsim_connector.acceleration_command(
+                roll=float(command.acceleration.roll),
+                pitch=float(command.acceleration.pitch),
+                yaw=float(command.acceleration.yaw),
                 throttle=float(command.acceleration.throttle),
-                duration=m.inf,
-                vehicle_name=self.drone_id
+                heading=heading
             )
-
-        
+        elif command.move_by == "yaw":
+            self.airsim_connector.yaw_command(heading=command.heading,
+                                              timeout=5.0,
+                                              margin=1.0)
         return True
 
     def interpolate_z_vel(self, next_z_vel):
