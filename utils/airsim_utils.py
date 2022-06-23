@@ -19,6 +19,7 @@ from airsim.types import YawMode
 from utils.data_classes import Orientation, PosVec3
 from utils.position_utils import position_to_list, quaternion_to_yaw
 from utils.position_utils import gps_velocity_to_list, gps_position_to_list
+from utils.position_utils import position_list, position_to_list, vector_to_list
 
 
 class ConnectorBase():
@@ -132,6 +133,11 @@ class PoseAirSimConnector(ConnectorBase):
                                 )
                             )
         return True
+    
+    def roll_pitch_yaw(self):
+        pitch, roll, yaw  = airsim.to_eularian_angles(airsim.MultirotorClient().simGetVehiclePose().orientation)
+
+        return [roll, pitch, yaw]
 
     def update_pose(self) -> None:
         state_data = self.airsim_client.getMultirotorState(
@@ -149,6 +155,10 @@ class PoseAirSimConnector(ConnectorBase):
             state_data.gps_location)
         self.current_velocity = gps_velocity_to_list(
             state_data.kinematics_estimated.linear_velocity)
+        self.drone_position = vector_to_list(state_data.kinematics_estimated.position)
+        self.drone_velocity = vector_to_list(state_data.kinematics_estimated.linear_velocity)
+        self.drone_attitude = self.roll_pitch_yaw()
+        self.drone_gyro = vector_to_list(state_data.kinematics_estimated.angular_acceleration)
 
     def shutdown(self) -> None:
          self.airsim_client.armDisarm(False, vehicle_name=self.drone_id)
