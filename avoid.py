@@ -1,5 +1,3 @@
-from numpy.core import arrayprint
-import setup_path 
 import airsim
 
 import sys
@@ -7,7 +5,7 @@ import math
 import time
 import argparse
 import pprint
-import numpy as np
+import numpy
 
 # TODO: 
 # Create different responses based on LiDar data returned: yaw for trees,
@@ -51,7 +49,7 @@ class LidarTest:
     def moveRight(self):
         self.client.moveByVelocityAsync(0, 2, 0, math.inf) 
 
-    def slopeCalculation(self, lidarData, droneVelocity):
+    def simple_right(self, lidarData):
     # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
         #state_data = self.client.getMultirotorState()
         overall_point_list = self.parse_liadar_date(lidarData)
@@ -70,10 +68,33 @@ class LidarTest:
         
         if min < 10:
             self.moveRight()
-            return [0, 1, 0]
+            # return [0, 1, 0] for later use with trajectory planning 
         else:
             self.moveForward()
-            return [1, 0, 0]
+            # return [1, 0, 0]
+    
+    def slopeCalculation(self, lidarData, droneVelocity):
+    # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
+        overall_point_list = self.parse_liadar_date(lidarData) 
+        midpoint_top_level = int(len(overall_point_list[1]) / 2)
+        x2_distance = overall_point_list[1][midpoint_top_level][0]
+        z2_distance = -overall_point_list[1][midpoint_top_level][2]
+
+        bottom_level_point = len(overall_point_list) - 1
+        midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
+        x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
+        z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
+
+        x_distance = math.fabs(x2_distance - x1_distance)
+        z_distance = math.fabs(z2_distance - z1_distance)
+        hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
+        
+        zVelocity = (z_distance / hypo)
+        xVelocity = (x_distance / hypo)
+        zVelocity = zVelocity * droneVelocity
+        xVelocity = xVelocity * droneVelocity
+
+        return xVelocity, zVelocity
 
     def execute(self):
         """
@@ -122,7 +143,7 @@ class LidarTest:
             lidar_data = self.client.getLidarData()  
             data = lidar_data.point_cloud
 
-            self.slopeCalculation(data, 10) #takes the data as one parameter and 10 is drone speed user inputs
+            self.simple_right(data) #takes the data as one parameter and 10 is drone speed user inputs
             
             #self.client.moveByVelocityAsync(10, 0, 0, 0.01) 
             time.sleep(0.01)
