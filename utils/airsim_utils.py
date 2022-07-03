@@ -14,12 +14,12 @@ import time
 
 from threading import Thread, Event
 from datetime import datetime
-from airsim.types import YawMode
+from airsim.types import Quaternionr, YawMode
 
 from utils.data_classes import Orientation, PosVec3
 from utils.position_utils import position_to_list, quaternion_to_yaw
 from utils.position_utils import gps_velocity_to_list, gps_position_to_list
-from utils.position_utils import position_list, position_to_list, vector_to_list
+from utils.position_utils import vector_to_list
 
 
 class ConnectorBase():
@@ -134,8 +134,9 @@ class PoseAirSimConnector(ConnectorBase):
                             )
         return True
     
-    def roll_pitch_yaw(self):
-        pitch, roll, yaw  = airsim.to_eularian_angles(airsim.MultirotorClient().simGetVehiclePose().orientation)
+    def roll_pitch_yaw(self, orientation: Quaternionr):
+        print(orientation)
+        pitch, roll, yaw  = airsim.to_eularian_angles(orientation)
 
         return [roll, pitch, yaw]
 
@@ -148,17 +149,17 @@ class PoseAirSimConnector(ConnectorBase):
             state_data.kinematics_estimated.position,
             starting_position=self.starting_position,
             frame="global")
-        self.current_position = self.global_position
         self.heading = quaternion_to_yaw(state_data.kinematics_estimated.orientation)
         self.current_orientation = Orientation(yaw=self.heading)
         self.gps_pos_vec3 = gps_position_to_list(
             state_data.gps_location)
         self.current_velocity = gps_velocity_to_list(
             state_data.kinematics_estimated.linear_velocity)
-        self.drone_position = vector_to_list(state_data.kinematics_estimated.position)
-        self.drone_velocity = vector_to_list(state_data.kinematics_estimated.linear_velocity)
-        self.drone_attitude = self.roll_pitch_yaw()
+        self.drone_velocity = self.current_velocity.toPythonList()
+        self.drone_position = self.global_position.toPythonList()
         self.drone_gyro = vector_to_list(state_data.kinematics_estimated.angular_acceleration)
+        self.drone_attitude = self.roll_pitch_yaw(state_data.kinematics_estimated.orientation)
+        print("Drone Attitude: {}".format(self.drone_attitude))
 
     def shutdown(self) -> None:
          self.airsim_client.armDisarm(False, vehicle_name=self.drone_id)

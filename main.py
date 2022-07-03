@@ -10,7 +10,6 @@
 import json
 import traceback
 
-from matplotlib import use
 import setup_path
 import airsim
 import time
@@ -18,8 +17,6 @@ import math as m
 import numpy as np
 import logging
 import matplotlib.pyplot as plot
-
-
 
 from multiprocessing import Queue, freeze_support
 
@@ -35,22 +32,22 @@ if __name__ == "__main__":
     freeze_support()
 
     FORMAT = '%(asctime)-15s %(message)s'
-    use_oa = True
+    use_oa = False
     logging.basicConfig(filename='logs/root.log',
                     level=logging.INFO,
                     format=FORMAT)
-    drone_ids = ["Drone1", "Drone2", "Drone3"]
-    lidar_ids = ["LidarSensor1", "LidarSensor2", "LidarSensor3"]
-    path_planning_queues = [Queue(), Queue(), Queue()]
+    drone_ids = ["Drone1"]
+    lidar_ids = ["LidarSensor{}".format(i + 1) for i in range(len(drone_ids))]
+    path_planning_queues = [Queue() for _ in range(len(drone_ids))]
     planners = list()
     avoiders = list()
     dist_threshold = 2.0 # meters
-    positions = [list(), list(), list()]
+    positions = [list() for _ in range(3)]
 
     airsim_client = airsim.MultirotorClient()
     airsim_client.confirmConnection()
 
-    with open("blocksTrajectory.json", "r") as f:
+    with open("trajectory.json", "r") as f:
         trajectory = json.loads(f.read())
     if use_oa:
         for drone_id, queue, sensor_name in zip(drone_ids, path_planning_queues, lidar_ids):

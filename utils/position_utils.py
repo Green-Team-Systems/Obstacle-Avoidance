@@ -13,6 +13,7 @@ import airsim
 
 from utils.data_classes import PosVec3, VelVec3
 from airsim import MultirotorClient
+from airsim.types import Vector3r
 from numpy import arctan2, degrees
 
 PRECISION = 8
@@ -128,7 +129,7 @@ def gps_position_to_list(gps_vector) -> list:
             gps_vector.altitude]
 
 
-def gps_velocity_to_list(velocity_vector) -> list:
+def gps_velocity_to_list(velocity_vector) -> VelVec3:
     """
     Given a vector from AirSim, generate a List to iterate
     through.
@@ -378,3 +379,7 @@ def quaternion_to_yaw(q: airsim.Quaternionr) -> float:
         2.0 * (q.y_val * q.x_val + q.w_val * q.z_val),
         -1.0 + 2.0 * (q.w_val * q.w_val)
         - (q.x_val * q.x_val)))
+
+
+def vector_to_list(vector: Vector3r) -> list:
+    return [vector.x_val, vector.y_val, vector.z_val]

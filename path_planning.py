@@ -24,7 +24,7 @@ from utils.data_classes import Orientation, PosVec3, MovementCommand, VelVec3
 from utils.killer_utils import GracefulKiller
 from utils.planning_utils import Planner
 from utils.airsim_utils import PoseAirSimConnector
-from controls import PIDController
+from controls import GRAVITY, PIDController
 
 # TODO Create status library
 
@@ -92,6 +92,11 @@ class PathPlanning(Process):
         self.last_position = PosVec3()
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
+        self.local_position_target = [float(), float(), float()]  # Meters
+        self.moment_cmd = [float(), float(), float()]  # Meters
+        self.local_velocity_target = [
+            float(), float(), float()]  # Meters / second
+        self.yaw_cmd = float()  # Degrees
         self.controls = PIDController()
         # TODO Add an inter-process queue between mapping and self
         self.planner = None
@@ -269,8 +274,17 @@ class PathPlanning(Process):
                                     X=self.planner.trajectory[0]["pos"].X,
                                     Y=self.planner.trajectory[0]["pos"].Y,
                                     Z=self.planner.trajectory[0]["pos"].Z)
+                                heading = self.planner.trajectory[0]["heading"]
+                                velocity = self.planner.trajectory[0]["velocity"]
                                 new_command = MovementCommand(position=position,
-                                                              heading=self.planner.trajectory[0]["heading"],
+                                                              heading=heading,
+                                                              velocity=VelVec3(
+                                                                  vx=(velocity *
+                                                                      m.cos(m.radians(heading))),
+                                                                  vy=(velocity *
+                                                                      m.sin(m.radians(heading))),
+                                                                  vz=0.0
+                                                              ),
                                                               move_by="position")
                                 self.move_to_next_position(
                                     new_command, startTime)
@@ -279,8 +293,17 @@ class PathPlanning(Process):
                                 X=self.planner.trajectory[0]["pos"].X,
                                 Y=self.planner.trajectory[0]["pos"].Y,
                                 Z=self.planner.trajectory[0]["pos"].Z)
+                            heading = self.planner.trajectory[0]["heading"]
+                            velocity = self.planner.trajectory[0]["velocity"]
                             new_command = MovementCommand(position=position,
-                                                          heading=self.planner.trajectory[0]["heading"],
+                                                          heading=heading,
+                                                          velocity=VelVec3(
+                                                              vx=(velocity *
+                                                                  m.cos(m.radians(heading))),
+                                                              vy=(velocity *
+                                                                  m.sin(m.radians(heading))),
+                                                              vz=0.0
+                                                          ),
                                                           move_by="position")
                             self.move_to_next_position(
                                 new_command, startTime)
@@ -294,8 +317,17 @@ class PathPlanning(Process):
                     try:
                         if len(self.planner.trajectory) > 0:
                             position = self.planner.trajectory[0]["pos"]
+                            heading = self.planner.trajectory[0]["heading"]
+                            velocity = self.planner.trajectory[0]["velocity"]
                             new_command = MovementCommand(position=position,
-                                                          heading=self.planner.trajectory[0]["heading"],
+                                                          heading=heading,
+                                                          velocity=VelVec3(
+                                                              vx=(velocity *
+                                                                  m.cos(m.radians(heading))),
+                                                              vy=(velocity *
+                                                                  m.sin(m.radians(heading))),
+                                                              vz=0.0
+                                                          ),
                                                           move_by="position")
                             self.move_to_next_position(new_command, startTime)
                         time.sleep(0.02)
@@ -325,46 +357,57 @@ class PathPlanning(Process):
     def position_controller(self):
         self.attitude_target = np.array((0.0, 0.0, self.yaw_cmd))
         acceleration_cmd = self.controls.lateral_position_control(
-                self.local_position_target[0:2],
-                self.local_velocity_target[0:2],
-                self.airsim_connector.drone_position[0:2],
-                self.airsim_connector.drone_velocity[0:2])
+            self.local_position_target[0:2],
+            self.local_velocity_target[0:2],
+            self.airsim_connector.drone_position[0:2],
+            self.airsim_connector.drone_velocity[0:2])
         self.local_acceleration_target = np.array([acceleration_cmd[0],
                                                    acceleration_cmd[1],
                                                    0.0])
 
     def attitude_controller(self):
         self.thrust_cmd = self.controls.altitude_control(
-                self.local_position_target[2],
-                self.local_velocity_target[2],
-                self.airsim_connector.drone_position[2],
-                self.airsim_connector.drone_velocity[2],
-                self.airsim_connector.drone_attitude,
-                9.81)
+            self.local_position_target[2],
+            self.local_velocity_target[2],
+            self.airsim_connector.drone_position[2],
+            self.airsim_connector.drone_velocity[2],
+            self.airsim_connector.drone_attitude,
+            GRAVITY)
         roll_pitch_rate_cmd = self.controls.roll_pitch_controller(
-                self.local_acceleration_target[0:2],
-                self.airsim_connector.drone_attitude,
-                self.thrust_cmd)
+            self.local_acceleration_target[0:2],
+            self.airsim_connector.drone_attitude,
+            self.thrust_cmd)
         yawrate_cmd = self.controls.yaw_control(
-                self.attitude_target[2],
-                self.airsim_connector.drone_attitude[2])
+            self.attitude_target[2],
+            self.airsim_connector.drone_attitude[2])
         self.body_rate_target = np.array(
-                [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
+            [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
+        self.log.info("{}|{}|message|{}".format(
+            datetime.utcnow(),
+            self.drone_id,
+            "Body Rate Target: {}".format(self.body_rate_target)
+        )
+        )
 
     def bodyrate_controller(self):
         self.moment_cmd = self.controls.body_rate_control(
-                self.body_rate_target,
-                self.airsim_connector.drone_gyro)
-    
-    
+            self.body_rate_target,
+            self.airsim_connector.drone_gyro)
+
     def control_drone(self):
-        self.airsim_connector.moveByRollPitchYawrateThrottleAsync(
-            self.moment_cmd[0], 
-            self.moment_cmd[1], 
-            self.moment_cmd[2], 
-            self.thrust_cmd, 
-            m.inf, 
-            vehicle_name=self.drone_id
+        self.log.info("{}|{}|message|{}".format(
+            datetime.utcnow(),
+            self.drone_id,
+            "Moment Command: {} Thrust Command: {}".format(self.moment_cmd,
+                                                           self.thrust_cmd)
+        )
+        )
+        self.airsim_connector.acceleration_command(
+            roll=self.moment_cmd[0],
+            pitch=self.moment_cmd[1],
+            yaw=-self.moment_cmd[2],
+            throttle=self.thrust_cmd,
+            heading=-self.yaw_cmd
         )
 
     def calculate_velocities(self, target_pos, startTime):
@@ -473,9 +516,22 @@ class PathPlanning(Process):
         """
         # TODO Add drivetrain once that is fixed
         if command.move_by == "position":
-            self.local_position_target = [command.position.X, command.position.Y, command.position.Z]
-            self.local_velocity_target = 10
+
+            self.local_position_target = [
+                command.position.X, command.position.Y, command.position.Z]
+            self.local_velocity_target = [
+                command.velocity.vx, command.velocity.vy, command.velocity.vz
+            ]
             self.yaw_cmd = command.heading
+            self.log.info("{}|{}|message|{}".format(
+                datetime.utcnow(),
+                self.drone_id,
+                "Local Target: {} Local Velocity {} Heading {}".format(
+                    self.local_position_target, self.local_velocity_target, self.yaw_cmd
+                )
+            )
+            )
+            """
             x_Vel, y_Vel, z_Vel = self.calculate_velocities(
                 command.position,
                 startTime
@@ -507,7 +563,7 @@ class PathPlanning(Process):
             self.last_position.Z = command.position.Z
             # heading = self.last_command.heading
             
-            """
+            
             self.log.info("{}|{}|velocities|{}".format(# All agents start from their
                                     datetime.utcnow(),
                                     self.drone_id,
@@ -523,10 +579,11 @@ class PathPlanning(Process):
             """
             self.position_controller()
             self.attitude_controller()
-            self.bodyrate_controller
+            self.bodyrate_controller()
             self.control_drone()
 
         elif command.move_by == "velocity":
+
             # TODO Find a way to incorporate the previous velocities
             x_Vel = self.last_velocities.vx + \
                 (command.velocity.vx * np.cos(np.radians(self.heading)))
@@ -543,7 +600,7 @@ class PathPlanning(Process):
                                                    yVel=y_Vel,
                                                    zVel=z_Vel,
                                                    speed=5,
-                                                   heading = heading)
+                                                   heading=self.heading)
         elif command.move_by == "acceleration":
             self.log.info("{}|{}|acceleration|{}".format(
                 datetime.utcnow(),
@@ -565,7 +622,7 @@ class PathPlanning(Process):
                 pitch=float(command.acceleration.pitch),
                 yaw=float(command.acceleration.yaw),
                 throttle=float(command.acceleration.throttle),
-                heading= heading
+                heading=self.heading
             )
         elif command.move_by == "yaw":
             self.airsim_connector.yaw_command(heading=command.heading,

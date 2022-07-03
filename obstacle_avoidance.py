@@ -9,8 +9,6 @@
 # Description: Module for avoiding obstacles in an agents path
 # =============================================================================
 
-from os import kill
-from turtle import heading
 import setup_path
 import airsim
 import logging
@@ -22,12 +20,10 @@ import json
 
 from multiprocessing import Process
 from datetime import datetime
-from multiprocessing.queues import Empty
 
 from utils.data_classes import PosVec3, MovementCommand, VelVec3, OASystemStates
 from utils.position_utils import position_to_list
 from utils.killer_utils import GracefulKiller
-from airsim.types import LidarData, YawMode
 from walltrace import WallTrace
 # TODO Create status library
 

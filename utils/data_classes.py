@@ -31,6 +31,12 @@ class PosVec3:
     Z: float = 0.0
     frame: str = "local"
 
+    def toPythonList(self):
+        """
+        Return the PosVec3 command as a list
+        """
+        return [self.X, self.Y, self.Z]
+
 
 @dataclass
 class GPSPosVec3:
@@ -66,6 +72,12 @@ class VelVec3:
     vx: float = 0.0
     vy: float = 0.0
     vz: float = 0.0
+
+    def toPythonList(self) -> list:
+        """
+        Return the PosVec3 command as a list
+        """
+        return [self.vx, self.vy, self.vy]
 
 
 @dataclass
