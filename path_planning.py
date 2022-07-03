@@ -13,6 +13,7 @@ import copy
 import numpy as np
 import math as m
 import json
+import airsim
 
 from multiprocessing import Process
 from queue import Queue
@@ -23,6 +24,8 @@ from utils.data_classes import Orientation, PosVec3, MovementCommand, VelVec3
 from utils.killer_utils import GracefulKiller
 from utils.planning_utils import Planner
 from utils.airsim_utils import PoseAirSimConnector
+from controls import PIDController
+
 # TODO Create status library
 
 
@@ -89,6 +92,7 @@ class PathPlanning(Process):
         self.last_position = PosVec3()
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
+        self.controls = PIDController()
         # TODO Add an inter-process queue between mapping and self
         self.planner = None
 
@@ -318,6 +322,51 @@ class PathPlanning(Process):
         )
         )
 
+    def position_controller(self):
+        self.attitude_target = np.array((0.0, 0.0, self.yaw_cmd))
+        acceleration_cmd = self.controls.lateral_position_control(
+                self.local_position_target[0:2],
+                self.local_velocity_target[0:2],
+                self.airsim_connector.drone_position[0:2],
+                self.airsim_connector.drone_velocity[0:2])
+        self.local_acceleration_target = np.array([acceleration_cmd[0],
+                                                   acceleration_cmd[1],
+                                                   0.0])
+
+    def attitude_controller(self):
+        self.thrust_cmd = self.controls.altitude_control(
+                self.local_position_target[2],
+                self.local_velocity_target[2],
+                self.airsim_connector.drone_position[2],
+                self.airsim_connector.drone_velocity[2],
+                self.airsim_connector.drone_attitude,
+                9.81)
+        roll_pitch_rate_cmd = self.controls.roll_pitch_controller(
+                self.local_acceleration_target[0:2],
+                self.airsim_connector.drone_attitude,
+                self.thrust_cmd)
+        yawrate_cmd = self.controls.yaw_control(
+                self.attitude_target[2],
+                self.airsim_connector.drone_attitude[2])
+        self.body_rate_target = np.array(
+                [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
+
+    def bodyrate_controller(self):
+        self.moment_cmd = self.controls.body_rate_control(
+                self.body_rate_target,
+                self.airsim_connector.drone_gyro)
+    
+    
+    def control_drone(self):
+        self.airsim_connector.moveByRollPitchYawrateThrottleAsync(
+            self.moment_cmd[0], 
+            self.moment_cmd[1], 
+            self.moment_cmd[2], 
+            self.thrust_cmd, 
+            m.inf, 
+            vehicle_name=self.drone_id
+        )
+
     def calculate_velocities(self, target_pos, startTime):
         kP = 0.40
         kI = 0.00
@@ -424,6 +473,9 @@ class PathPlanning(Process):
         """
         # TODO Add drivetrain once that is fixed
         if command.move_by == "position":
+            self.local_position_target = [command.position.X, command.position.Y, command.position.Z]
+            self.local_velocity_target = 10
+            self.yaw_cmd = command.heading
             x_Vel, y_Vel, z_Vel = self.calculate_velocities(
                 command.position,
                 startTime
@@ -454,20 +506,25 @@ class PathPlanning(Process):
             self.last_position.Y = command.position.Y
             self.last_position.Z = command.position.Z
             # heading = self.last_command.heading
-            """
             
+            """
             self.log.info("{}|{}|velocities|{}".format(# All agents start from their
                                     datetime.utcnow(),
                                     self.drone_id,
                                     json.dumps([x_Vel, y_Vel, z_Vel])
                                     )
                                 )
-            """
+            
             self.airsim_connector.velocity_command(xVel=x_Vel,
                                                    yVel=y_Vel,
                                                    zVel=z_Vel,
                                                    speed=5,
                                                    heading=heading)
+            """
+            self.position_controller()
+            self.attitude_controller()
+            self.bodyrate_controller
+            self.control_drone()
 
         elif command.move_by == "velocity":
             # TODO Find a way to incorporate the previous velocities
@@ -486,7 +543,7 @@ class PathPlanning(Process):
                                                    yVel=y_Vel,
                                                    zVel=z_Vel,
                                                    speed=5,
-                                                   heading=heading)
+                                                   heading = heading)
         elif command.move_by == "acceleration":
             self.log.info("{}|{}|acceleration|{}".format(
                 datetime.utcnow(),
@@ -508,7 +565,7 @@ class PathPlanning(Process):
                 pitch=float(command.acceleration.pitch),
                 yaw=float(command.acceleration.yaw),
                 throttle=float(command.acceleration.throttle),
-                heading=heading
+                heading= heading
             )
         elif command.move_by == "yaw":
             self.airsim_connector.yaw_command(heading=command.heading,
