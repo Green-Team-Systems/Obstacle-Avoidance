@@ -21,7 +21,6 @@ import matplotlib.pyplot as plot
 
 
 
-from mpl_toolkits import mplot3d
 from multiprocessing import Queue, freeze_support
 
 from obstacle_avoidance import ObstacleAvoidance
