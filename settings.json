@@ -23,29 +23,17 @@
           "Roll": 0,
           "Pitch": 0,
           "Yaw": 0,
-          "VerticalFOVUpper": -15,
+          "VerticalFOVUpper": 0,
           "VerticalFOVLower": -25,
           "HorizontalFOVStart": -20,
           "HorizontalFOVEnd": 20,
-          "DrawDebugPoints": false,
+          "DrawDebugPoints": true,
           "DataFrame": "SensorLocalFrame"
-        },
-        "Balls": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": -90, "Roll": 0,
-          "DrawDebugPoints": true
-        },   
-        "Cock": {
-          "SensorType": 5,
-          "Enabled" : true,
-          "Yaw": 0, "Pitch": 0, "Roll": 0,
-          "DrawDebugPoints": true
-        }   
+        }
       },
-      "X": 400,
+      "X": 0,
       "Y": 0,
-      "Z": -200,
+      "Z": -1,
       "Pitch": 0,
       "Roll": 0,
       "Yaw": 0
