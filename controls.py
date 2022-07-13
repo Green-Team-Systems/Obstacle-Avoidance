@@ -4,7 +4,7 @@ from frame_utils import euler2RM
 
 GRAVITY = -9.81
 DRONE_MASS = 1.0
-MOI = np.array([0.005, 0.005, 0.01]) #Need to find a way to get these values or some how guess it!!!
+MOI = np.array([0.01, 0.01, 0.01]) #Need to find a way to get these values or some how guess it!!!
 MAX_THRUST = 4.179446268
 MAX_TORQUE = 0.055562
 PI = np.pi
@@ -16,14 +16,14 @@ class PIDController(object):
         self.max_ascent_rate = 5
         self.max_descent_rate = 2
         self.Kp_hdot = 0.3
-        self.Kp_yaw = 0.4
-        self.Kp_r = 0.4
-        self.Kp_roll = 0.4
-        self.Kp_p = 0.4
-        self.Kp_pitch = 0.4
-        self.Kp_q = 0.4
+        self.Kp_yaw = 1.0
+        self.Kp_r = 1.0
+        self.Kp_roll = 0.2
+        self.Kp_p = 1.0
+        self.Kp_pitch = 0.2
+        self.Kp_q = 1.0
         self.Kp_pos = 0.4
-        self.Kp_vel = 0.4
+        self.Kp_vel = 1.0
         self.Kp_alt = 0.4
         self.max_speed = 2.0
         
@@ -111,5 +111,5 @@ class PIDController(object):
         elif yaw_error < -PI:
             yaw_error = yaw_error + 2.0*PI
         
-        yawrate_cmd = self.Kp_yaw*yaw_error
+        yawrate_cmd = self.Kp_yaw * yaw_error
         return yawrate_cmd

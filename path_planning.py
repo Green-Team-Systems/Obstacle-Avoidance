@@ -407,9 +407,9 @@ class PathPlanning(Process):
         self.airsim_connector.acceleration_command(
             roll=self.moment_cmd[0],
             pitch=self.moment_cmd[1],
-            yaw=-self.moment_cmd[2],
+            yaw=self.moment_cmd[2],
             throttle=self.thrust_cmd,
-            heading=-self.yaw_cmd
+            heading=np.degrees(-self.yaw_cmd)
         )
 
     def calculate_velocities(self, target_pos, startTime):
@@ -524,7 +524,7 @@ class PathPlanning(Process):
             self.local_velocity_target = [
                 command.velocity.vx, command.velocity.vy, command.velocity.vz
             ]
-            self.yaw_cmd = command.heading
+            self.yaw_cmd = np.radians(command.heading)
             """self.log.info("{}|{}|message|{}".format(
                 datetime.utcnow(),
                 self.drone_id,
