@@ -361,16 +361,17 @@ class PathPlanning(Process):
             self.local_velocity_target[0:2],
             self.airsim_connector.drone_position[0:2],
             self.airsim_connector.drone_velocity[0:2])
+        print(f'{self.airsim_connector.drone_position[0:2]}')
         self.local_acceleration_target = np.array([acceleration_cmd[0],
                                                    acceleration_cmd[1],
                                                    0.0])
 
     def attitude_controller(self):
         self.thrust_cmd = self.controls.altitude_control(
-            self.local_position_target[2],
-            self.local_velocity_target[2],
-            self.airsim_connector.drone_position[2],
-            self.airsim_connector.drone_velocity[2],
+            -self.local_position_target[2],
+            -self.local_velocity_target[2],
+            -self.airsim_connector.drone_position[2],
+            -self.airsim_connector.drone_velocity[2],
             self.airsim_connector.drone_attitude,
             GRAVITY)
         roll_pitch_rate_cmd = self.controls.roll_pitch_controller(

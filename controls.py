@@ -12,102 +12,103 @@ PI = np.pi
 class PIDController(object):
     
     def __init__(self):
-        
-        self.body_rate_kP = np.array([10.0, 10.0, 1.5])
-
-        self.altitude_kP = 0.40
-        self.altitude_kD = 0.01
-
-        self.yaw_kP = 0.4
-
-        self.rpy_kP_Roll = 0.25
-        self.rpy_kP_Pitch = 0.25
-
-        self.lateral_kP = 0.40
-        self.lateral_kD = 0.05
-        return
+        self.max_tilt = 1.0
+        self.max_ascent_rate = 5
+        self.max_descent_rate = 2
+        self.Kp_hdot = 1.5
+        self.Kp_yaw = 4.5
+        self.Kp_r = 5
+        self.Kp_roll = 8
+        self.Kp_p = 20
+        self.Kp_pitch = 8
+        self.Kp_q = 20
+        self.Kp_pos = 6
+        self.Kp_vel = 4
+        self.Kp_alt = 4.0
+        self.max_speed = 2.0
         
     def lateral_position_control(self, local_position_cmd: list, local_velocity_cmd: list, local_position: list, local_velocity: list, acceleration_ff = np.array([0.0, 0.0])):
         """Generate horizontal acceleration commands for the vehicle in the local frame """
 
-        err_p = np.array(local_position_cmd) - np.array(local_position)
-        err_dot = np.array(local_velocity_cmd) - np.array(local_velocity)
+        velocity_cmd = self.Kp_pos * (np.array(local_position_cmd) - np.array(local_position))
+        
+        velocity_norm = np.sqrt(velocity_cmd[0] * velocity_cmd[0] + \
+                                velocity_cmd[1] * velocity_cmd[1])
+        
+        if velocity_norm > self.max_speed:
+            velocity_cmd = velocity_cmd * self.max_speed / velocity_norm
+        
+        acceleration_cmd  = acceleration_ff + \
+                            self.Kp_pos * (np.array(local_position_cmd) - np.array(local_position)) + \
+                            self.Kp_vel * (np.array(local_velocity_cmd) - np.array(local_velocity))
 
-        print("Position Error: {}".format(err_p))
-        print("Velocity Error: {}".format(err_dot))
-        result = self.lateral_kP * err_p + self.lateral_kD * err_dot + acceleration_ff
-        return result
+        print("Position: {}".format(np.array(local_position)))
+        print("Velocity Error: {}".format(velocity_cmd))
+
+        return acceleration_cmd
     
     def altitude_control(self, altitude_cmd, vertical_velocity_cmd, altitude, vertical_velocity, attitude, acceleration_ff = 0.0):
         """Generate vertical acceleration (thrust) command """
 
-        z_err = -1 * (altitude_cmd) + (altitude)
-        z_err_dot = vertical_velocity_cmd - vertical_velocity
-        b_z = euler2RM(*attitude)[2,2]
+        hdot_cmd = self.Kp_alt * (altitude_cmd - altitude) + vertical_velocity_cmd
 
-        u_1 = self.altitude_kP * z_err + self.altitude_kD * z_err_dot + acceleration_ff
-        acc = (u_1 - GRAVITY)/b_z
+        hdot_cmd = np.clip(hdot_cmd, -self.max_descent_rate, self.max_ascent_rate)
+        print(f'Hdot_cmd {hdot_cmd}')
+        acceleration_cmd = acceleration_ff + self.Kp_hdot*(hdot_cmd - vertical_velocity)
+        print(f'accel cmd {acceleration_cmd}')
 
-        thrust = DRONE_MASS * acc
+        R33 = np.cos(attitude[0]) * np.cos(attitude[1])
+        thrust = DRONE_MASS * -acceleration_cmd / R33
+
         if thrust > MAX_THRUST:
             thrust = MAX_THRUST
         else:
             if thrust < 0.0:
-                thrust = 0.1
-
+                thrust = 0.0
+        print(f"Thrust: {thrust}\n")
         return thrust
     
     def roll_pitch_controller(self, acceleration_cmd, attitude, thrust_cmd):
         """ Generate the rollrate and pitchrate commands in the body frame """
+        R = euler2RM(attitude[0], attitude[1], attitude[2])
+        c_d = thrust_cmd / DRONE_MASS
 
-        if thrust_cmd > 0.1:
-            c = - thrust_cmd / DRONE_MASS;
-            b_x_c, b_y_c = np.clip(acceleration_cmd / c, -1., 1)
-
-            rot_mat = euler2RM(*attitude)
-
-            b_x = rot_mat[0, 2]
-            b_x_err = b_x_c - b_x
-            b_x_p_term = self.rpy_kP_Roll * b_x_err
-
-            b_y = rot_mat[1,2]
-            b_y_err = b_y_c - b_y
-            b_y_p_term = self.rpy_kP_Pitch * b_y_err
-
-            b_x_commanded_dot = b_x_p_term
-            b_y_commanded_dot = b_y_p_term
-
-            rot_mat1=np.array([[rot_mat[1,0],-rot_mat[0,0]],[rot_mat[1,1],-rot_mat[0,1]]])/rot_mat[2,2]
-
-            rot_rate = np.matmul(rot_mat1, np.array([b_x_commanded_dot,b_y_commanded_dot]).T)
-            p_c = rot_rate[0]
-            q_c = rot_rate[1]
-            print(f'{b_x_err} {b_y_err}')
-            print(p_c, q_c)
-            return np.array([q_c, p_c])
+        if thrust_cmd > 0.0: 
+            target_R13 = -np.clip(acceleration_cmd[0].item()/c_d, -self.max_tilt, self.max_tilt) #-min(max(acceleration_cmd[0].item()/c_d, -self.max_tilt), self.max_tilt)
+            target_R23 = -np.clip(acceleration_cmd[1].item()/c_d, -self.max_tilt, self.max_tilt) #-min(max(acceleration_cmd[1].item()/c_d, -self.max_tilt), self.max_tilt)
+            
+            p_cmd = (1/R[2, 2]) * \
+                    (-R[1, 0] * self.Kp_roll * (R[0, 2]-target_R13) + \
+                     R[0, 0] * self.Kp_pitch * (R[1, 2]-target_R23))
+            q_cmd = (1/R[2, 2]) * \
+                    (-R[1, 1] * self.Kp_roll * (R[0, 2]-target_R13) + \
+                     R[0, 1] * self.Kp_pitch * (R[1, 2]-target_R23))
         else:
-            return np.array([0., 0.])
+            print(f"negative thrust command {thrust_cmd}")
+            p_cmd = 0.0
+            q_cmd = 0.0
+            thrust_cmd = 0.0
+        return np.array([p_cmd, q_cmd])
 
     def body_rate_control(self, body_rate_cmd, body_rate):
         """ Generate the roll, pitch, yaw moment commands in the body frame """
-
-        taus = MOI * np.multiply(self.body_rate_kP, ( body_rate_cmd - body_rate ))
-
-        taus_mod = np.linalg.norm(taus)
-
-        if taus_mod > MAX_TORQUE:
-            taus = taus * MAX_TORQUE / taus_mod
-        print("Taus: {}".format(taus))
-        return taus
+        Kp_rate = np.array([self.Kp_p, self.Kp_q, self.Kp_r])
+        rate_error = body_rate_cmd - body_rate
+        
+        moment_cmd = MOI * np.multiply(Kp_rate, rate_error)
+        if np.linalg.norm(moment_cmd) > MAX_TORQUE:
+            moment_cmd = moment_cmd*MAX_TORQUE/np.linalg.norm(moment_cmd)
+        return moment_cmd
 
     def yaw_control(self, yaw_cmd, yaw):
         """ Generate the target yawrate """
-
+        yaw_cmd = np.mod(yaw_cmd, 2.0*PI)
+        
         yaw_error = yaw_cmd - yaw
         if yaw_error > PI:
-            yaw_error = yaw_error - 2.0 * PI
-        elif yaw_error < -PI:    
-            yaw_error = yaw_error + 2.0 * PI
-
-        yawrate_cmd = self.yaw_kP * yaw_error
+            yaw_error = yaw_error - 2.0*PI
+        elif yaw_error < -PI:
+            yaw_error = yaw_error + 2.0*PI
+        
+        yawrate_cmd = self.Kp_yaw*yaw_error
         return yawrate_cmd
