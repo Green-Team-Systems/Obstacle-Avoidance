@@ -15,16 +15,16 @@ class PIDController(object):
         self.max_tilt = 1.0
         self.max_ascent_rate = 5
         self.max_descent_rate = 2
-        self.Kp_hdot = 1.5
-        self.Kp_yaw = 4.5
-        self.Kp_r = 5
-        self.Kp_roll = 8
-        self.Kp_p = 20
-        self.Kp_pitch = 8
-        self.Kp_q = 20
-        self.Kp_pos = 6
-        self.Kp_vel = 4
-        self.Kp_alt = 4.0
+        self.Kp_hdot = 0.3
+        self.Kp_yaw = 0.4
+        self.Kp_r = 0.4
+        self.Kp_roll = 0.4
+        self.Kp_p = 0.4
+        self.Kp_pitch = 0.4
+        self.Kp_q = 0.4
+        self.Kp_pos = 0.4
+        self.Kp_vel = 0.4
+        self.Kp_alt = 0.4
         self.max_speed = 2.0
         
     def lateral_position_control(self, local_position_cmd: list, local_velocity_cmd: list, local_position: list, local_velocity: list, acceleration_ff = np.array([0.0, 0.0])):
@@ -52,9 +52,10 @@ class PIDController(object):
 
         hdot_cmd = self.Kp_alt * (altitude_cmd - altitude) + vertical_velocity_cmd
 
+        print("Previous Hdot Cmd: {}".format(hdot_cmd))
         hdot_cmd = np.clip(hdot_cmd, -self.max_descent_rate, self.max_ascent_rate)
         print(f'Hdot_cmd {hdot_cmd}')
-        acceleration_cmd = acceleration_ff + self.Kp_hdot*(hdot_cmd - vertical_velocity)
+        acceleration_cmd = acceleration_ff + self.Kp_hdot * (hdot_cmd - vertical_velocity)
         print(f'accel cmd {acceleration_cmd}')
 
         R33 = np.cos(attitude[0]) * np.cos(attitude[1])
@@ -64,7 +65,7 @@ class PIDController(object):
             thrust = MAX_THRUST
         else:
             if thrust < 0.0:
-                thrust = 0.0
+                thrust = 0.1
         print(f"Thrust: {thrust}\n")
         return thrust
     

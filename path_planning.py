@@ -361,28 +361,29 @@ class PathPlanning(Process):
             self.local_velocity_target[0:2],
             self.airsim_connector.drone_position[0:2],
             self.airsim_connector.drone_velocity[0:2])
-        print(f'{self.airsim_connector.drone_position[0:2]}')
+        print(f'Drone Position: {self.airsim_connector.drone_position}')
+        print("Acceleration Command: {} | {}".format(acceleration_cmd[0], acceleration_cmd[1]))
         self.local_acceleration_target = np.array([acceleration_cmd[0],
                                                    acceleration_cmd[1],
                                                    0.0])
 
     def attitude_controller(self):
         self.thrust_cmd = self.controls.altitude_control(
-            -self.local_position_target[2],
-            -self.local_velocity_target[2],
-            -self.airsim_connector.drone_position[2],
-            -self.airsim_connector.drone_velocity[2],
-            self.airsim_connector.drone_attitude,
-            GRAVITY)
+            self.local_position_target[2],
+            self.local_velocity_target[2],
+            self.airsim_connector.drone_position[2],
+            self.airsim_connector.drone_velocity[2],
+            self.airsim_connector.drone_attitude)
         roll_pitch_rate_cmd = self.controls.roll_pitch_controller(
             self.local_acceleration_target[0:2],
             self.airsim_connector.drone_attitude,
             self.thrust_cmd)
+        print("Roll: {} Pitch: {}".format(roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1]))
         yawrate_cmd = self.controls.yaw_control(
             self.attitude_target[2],
             self.airsim_connector.drone_attitude[2])
         self.body_rate_target = np.array(
-            [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
+            [roll_pitch_rate_cmd[0], -roll_pitch_rate_cmd[1], yawrate_cmd])
         self.log.info("{}|{}|message|{}".format(
             datetime.utcnow(),
             self.drone_id,
@@ -396,13 +397,13 @@ class PathPlanning(Process):
             self.airsim_connector.drone_gyro)
 
     def control_drone(self):
-        self.log.info("{}|{}|message|{}".format(
+        """ self.log.info("{}|{}|message|{}".format(
             datetime.utcnow(),
             self.drone_id,
             "Moment Command: {} Thrust Command: {}".format(self.moment_cmd,
                                                            self.thrust_cmd)
         )
-        )
+        ) """
         self.airsim_connector.acceleration_command(
             roll=self.moment_cmd[0],
             pitch=self.moment_cmd[1],
@@ -524,14 +525,14 @@ class PathPlanning(Process):
                 command.velocity.vx, command.velocity.vy, command.velocity.vz
             ]
             self.yaw_cmd = command.heading
-            self.log.info("{}|{}|message|{}".format(
+            """self.log.info("{}|{}|message|{}".format(
                 datetime.utcnow(),
                 self.drone_id,
                 "Local Target: {} Local Velocity {} Heading {}".format(
                     self.local_position_target, self.local_velocity_target, self.yaw_cmd
                 )
             )
-            )
+            )"""
             """
             x_Vel, y_Vel, z_Vel = self.calculate_velocities(
                 command.position,

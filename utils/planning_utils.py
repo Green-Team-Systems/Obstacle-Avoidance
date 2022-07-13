@@ -34,7 +34,7 @@ class Planner():
                  log: logging.Logger,
                  drone_id: str,
                  completed_radius: float = 2.0,
-                 velocity_max: float = 15.0,
+                 velocity_max: float = 3.0,
                  velocity_min: float = 1.0,
                  acceleration_max: float = 2.0,
                  traj_type: TrajectoryType = TrajectoryType.LINE) -> None:
