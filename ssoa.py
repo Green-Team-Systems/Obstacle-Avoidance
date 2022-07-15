@@ -220,7 +220,7 @@ class ClearPathObstacleAvoidance:
         airsim.wait_key('Press any key to lift drone')
         self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
-        waypoint = [[5,5,0],[10,10,0],[30,23,0]]
+        waypoint = [[5,5,0],[10,10,0],[30,28,0]]
         
         n = 0
         try:
@@ -233,9 +233,13 @@ class ClearPathObstacleAvoidance:
                 chosenRowIndex = self.chooseRow(overall_point_list)
                 # print("chosenrow",chosenRowIndex)
                 #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-                fixedchosenRow = self.gapLabel(1, overall_point_list[chosenRowIndex])                
-                filtered_row = self.view_distance_filter(10, fixedchosenRow)
-                self.edgeCoordinates(filtered_row)
+                fixedchosenRow = self.gapLabel(1, overall_point_list[chosenRowIndex])
+                # print("index",chosenRowIndex)
+                # print("fixedchosenrow",fixedchosenRow)                
+                filtered_row = self.view_distance_filter(30, fixedchosenRow)
+                if filtered_row != []:
+                #     print(filtered_row[int(len(filtered_row)/2)])
+                    self.edgeCoordinates(filtered_row)
                 # filtered_rownp = np.array(filtered_row)
                 # print(filtered_rownp.shape)
                 # print('HEADED TO: ' + str(waypoint[n]))
