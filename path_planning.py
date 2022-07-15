@@ -369,11 +369,12 @@ class PathPlanning(Process):
 
     def attitude_controller(self):
         self.thrust_cmd = self.controls.altitude_control(
-            self.local_position_target[2],
+            -self.local_position_target[2],
             self.local_velocity_target[2],
-            self.airsim_connector.drone_position[2],
+            -self.airsim_connector.drone_position[2],
             self.airsim_connector.drone_velocity[2],
-            self.airsim_connector.drone_attitude)
+            self.airsim_connector.drone_attitude, 
+            2.506317377090454)
         roll_pitch_rate_cmd = self.controls.roll_pitch_controller(
             self.local_acceleration_target[0:2],
             self.airsim_connector.drone_attitude,
@@ -404,11 +405,12 @@ class PathPlanning(Process):
                                                            self.thrust_cmd)
         )
         ) """
+        throttle_cmd = self.thrust_cmd / 4.179446268
         self.airsim_connector.acceleration_command(
             roll=self.moment_cmd[0],
             pitch=self.moment_cmd[1],
             yaw=self.moment_cmd[2],
-            throttle=self.thrust_cmd,
+            throttle=throttle_cmd,
             heading=np.degrees(-self.yaw_cmd)
         )
 
