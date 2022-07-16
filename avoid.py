@@ -113,7 +113,7 @@ class LidarTest:
         #self.client.moveToPositionAsync(0, 5, 0, 5).join()
 
         self.client.hoverAsync().join()
-
+        print(f'{self.client.getRotorStates()}')
         #time.sleep(10)
         
         # f = open('airsimdata.txt', 'w')
@@ -124,9 +124,11 @@ class LidarTest:
             lidar_data = self.client.getLidarData()  
             data = lidar_data.point_cloud
 
-            xVelocity, zVelocity = self.slopeCalculation(data, 10) #takes the data as one parameter and 10 is drone speed user inputs
+            self.client.moveByAngleRatesThrottleAsync(0,0,0,1.0, 10000)
+            print(f'{self.client.getClientVersion()}')
+            #xVelocity, zVelocity = self.slopeCalculation(data, 10) #takes the data as one parameter and 10 is drone speed user inputs
             
-            self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 10) 
+            #self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 10) 
             time.sleep(0.01)
 
     def parse_lidarData(self, data):

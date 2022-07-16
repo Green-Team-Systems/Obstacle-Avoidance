@@ -4,7 +4,7 @@ from frame_utils import euler2RM
 
 GRAVITY = -9.81
 DRONE_MASS = 1.0
-MOI = np.array([0.01, 0.01, 0.01]) #Need to find a way to get these values or some how guess it!!!
+MOI = np.array([0.0066905, 0.00801, 0.0142525]) #Need to find a way to get these values or some how guess it!!!
 MAX_THRUST = 4.179446268
 MAX_TORQUE = 0.055562
 PI = np.pi
@@ -13,9 +13,9 @@ class PIDController(object):
     
     def __init__(self):
         self.max_tilt = 1.0
-        self.max_ascent_rate = 5
+        self.max_ascent_rate = 2.5
         self.max_descent_rate = 2
-        self.Kp_hdot = 0.3
+        self.Kp_hdot = 0.1
         self.Kp_yaw = 1.0
         self.Kp_r = 1.0
         self.Kp_roll = 0.2
@@ -24,7 +24,7 @@ class PIDController(object):
         self.Kp_q = 1.0
         self.Kp_pos = 0.4
         self.Kp_vel = 1.0
-        self.Kp_alt = 0.4
+        self.Kp_alt = 0.5
         self.max_speed = 2.0
         
     def lateral_position_control(self, local_position_cmd: list, local_velocity_cmd: list, local_position: list, local_velocity: list, acceleration_ff = np.array([0.0, 0.0])):
@@ -50,22 +50,24 @@ class PIDController(object):
     def altitude_control(self, altitude_cmd, vertical_velocity_cmd, altitude, vertical_velocity, attitude, acceleration_ff = 0.0):
         """Generate vertical acceleration (thrust) command """
 
-        hdot_cmd = self.Kp_alt * (altitude_cmd - altitude) + vertical_velocity_cmd
-
-        print("Previous Hdot Cmd: {}".format(hdot_cmd))
-        hdot_cmd = np.clip(hdot_cmd, -self.max_descent_rate, self.max_ascent_rate)
-        print(f'Hdot_cmd {hdot_cmd}')
+        error = altitude_cmd - altitude
+        hdot_cmd = self.Kp_alt * (error) #+ vertical_velocity_cmd
+        print("Hdot_cmd before clip: {}".format(hdot_cmd))
+        print("altitude_cmd - altitude: {}".format(altitude_cmd - altitude))
+        hdot_cmd = np.clip(hdot_cmd, -self.max_descent_rate, self.max_ascent_rate) #if either above or below set to min or max respectivily
         acceleration_cmd = acceleration_ff + self.Kp_hdot * (hdot_cmd - vertical_velocity)
+        print("Hdot_cmd: {}".format(hdot_cmd))
+        print("Velocity Vertical: {}".format(vertical_velocity))
         print(f'accel cmd {acceleration_cmd}')
 
         R33 = np.cos(attitude[0]) * np.cos(attitude[1])
-        thrust = DRONE_MASS * -acceleration_cmd / R33
+        thrust = DRONE_MASS * acceleration_cmd / R33
 
         if thrust > MAX_THRUST:
             thrust = MAX_THRUST
         else:
             if thrust < 0.0:
-                thrust = 0.1
+                thrust = 0
         print(f"Thrust: {thrust}\n")
         return thrust
     
