@@ -24,6 +24,8 @@ class ClearPathObstacleAvoidance:
     destination = (-100, 50, 0)
     collisiondist = 4
     vehicle_name,lidar_names = 'Drone1',['LidarSensor1']
+    
+    
 
     # could use enum
     STATES = {
@@ -44,6 +46,7 @@ class ClearPathObstacleAvoidance:
         self.client.confirmConnection()
         self.client.enableApiControl(True)
         self.mode = self.STATES["Clear"]
+        
 
     def takeoff(self):
         # Takeoff of Drone
@@ -192,7 +195,9 @@ class ClearPathObstacleAvoidance:
             
             x_pos, y_pos, z_pos = (_estimated_kinematics.position)
             edge = [x_pos + endpoint[0], y_pos + endpoint[1], z_pos + endpoint[2]]
-            print("Edge COORD: ", edge)
+            # print("Edge COORD: ", edge)
+        
+        return edge
             
         
     """
@@ -210,6 +215,56 @@ class ClearPathObstacleAvoidance:
         else:
             return False
     
+    
+    def FrameVector(self, edgepoint):
+        length = 5
+        kinematicsEstimated = self.client.getMultirotorState().kinematics_estimated
+        w_val, x_val, y_val, z_val = (kinematicsEstimated.orientation)
+        x_pos, y_pos, z_pos = (kinematicsEstimated.position)
+        roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
+        points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
+        
+        v1 = points[0] - x_pos
+        v2 = points[1] - y_pos
+        
+        print("v1:", v1, " v2:", v2)
+        
+        return v1, v2
+        
+    """
+    Description: Convert a quaternion into euler angles (roll, pitch, yaw)
+    
+    Inputs: 
+    
+    Outputs:Orientation in Euler radian roll_x, pitch_y, yaw_z
+    
+    Notes:
+        roll is rotation around x in radians (counterclockwise)
+        pitch is rotation around y in radians (counterclockwise)
+        yaw is rotation around z in radians (counterclockwise)
+
+    """
+
+    def euler_from_quaternion(self,x, y, z, w):
+
+        t0 = +2.0 * (w * x + y * z)
+        t1 = +1.0 - 2.0 * (x * x + y * y)
+        roll_x = math.atan2(t0, t1)
+     
+        t2 = +2.0 * (w * y - z * x)
+        t2 = +1.0 if t2 > +1.0 else t2
+        t2 = -1.0 if t2 < -1.0 else t2
+        pitch_y = math.asin(t2)
+     
+        t3 = +2.0 * (w * z + x * y)
+        t4 = +1.0 - 2.0 * (y * y + z * z)
+        yaw_z = math.atan2(t3, t4)
+     
+        return roll_x, pitch_y, yaw_z # in radians               
+        
+        
+    
+    
     def execute(self):
         print("arming the drone...")
         
@@ -226,6 +281,8 @@ class ClearPathObstacleAvoidance:
         try:
             x_pos, y_pos, z_pos = self.estimated_kinematics.position
             
+            
+            
             while(waypoint != []):
                 #turn lidar data into list
                 overall_point_list = self.scan()
@@ -239,15 +296,18 @@ class ClearPathObstacleAvoidance:
                 filtered_row = self.view_distance_filter(30, fixedchosenRow)
                 if filtered_row != []:
                 #     print(filtered_row[int(len(filtered_row)/2)])
-                    self.edgeCoordinates(filtered_row)
+                    edge = self.edgeCoordinates(filtered_row)
+                    self.FrameVector(edge)
+                    
                 # filtered_rownp = np.array(filtered_row)
                 # print(filtered_rownp.shape)
                 # print('HEADED TO: ' + str(waypoint[n]))
                 self.client.moveToPositionAsync(waypoint[n][0],waypoint[n][1],waypoint[n][2], 5)
                 if (self.checkIfAtWaypt(waypoint[n])):
-                    x_pos, y_pos, z_pos = self.estimated_kinematics.position
-                    print(str(x_pos) + ',' + str(y_pos))
+                    # x_pos, y_pos, z_pos = self.estimated_kinematics.position
+                    # print(str(x_pos) + ',' + str(y_pos))
                     waypoint.pop(0)
+                    
                     
                     print('REACHED')
                 
