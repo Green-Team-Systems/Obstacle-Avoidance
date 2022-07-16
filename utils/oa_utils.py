@@ -127,18 +127,25 @@ class Slope(Algorithm):
         self.publish_point = False
         return None
 
-    """
+
+class RightHandRule(Algorithm):
+
+    def __init__(self):
+        super().__init__()
+
     def moveForward(self):
+        # TODO Use the fact that we have the point we detected
         self.client.moveByVelocityAsync(6, 0, 0, math.inf) 
     
     def moveRight(self):
+        # TODO Use the fact that we have the point detected
         self.client.moveByVelocityAsync(0, 2, 0, math.inf) 
 
-    def simple_right(self, lidarData):
+    def run(self, point_cloud: list):
     # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
         #state_data = self.client.getMultirotorState()
-        overall_point_list = self.parse_liadar_date(lidarData)
-        top_level = overall_point_list[1]
+        
+        top_level = point_cloud[0]
         x_points = []
         min = 1000
 
@@ -157,4 +164,3 @@ class Slope(Algorithm):
         else:
             self.moveForward()
             # return [1, 0, 0]
-    """
