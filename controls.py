@@ -118,4 +118,4 @@ class PIDController(object):
             yaw_error = yaw_error + 2.0*PI
         
         yawrate_cmd = self.Kp_yaw * yaw_error
-        return yawrate_cmd
+        return -yawrate_cmd
