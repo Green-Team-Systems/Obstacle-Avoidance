@@ -123,9 +123,8 @@ class LidarTest:
             # lidar_data and data both need to be placed in a while loop along with function defination to make sure it works :) 
             lidar_data = self.client.getLidarData()  
             data = lidar_data.point_cloud
-
-            self.client.moveByAngleRatesThrottleAsync(0,0,0,1.0, 10000)
-            print(f'{self.client.getClientVersion()}')
+            self.client.moveByAngleRatesThrottleAsync(0,0,0,0.527133859637886, 10000)
+            print(f'{self.client.getRotorStates()}')
             #xVelocity, zVelocity = self.slopeCalculation(data, 10) #takes the data as one parameter and 10 is drone speed user inputs
             
             #self.client.moveByVelocityAsync(xVelocity, 0, -zVelocity, 10) 

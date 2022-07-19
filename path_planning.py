@@ -24,7 +24,7 @@ from utils.data_classes import Orientation, PosVec3, MovementCommand, VelVec3
 from utils.killer_utils import GracefulKiller
 from utils.planning_utils import Planner
 from utils.airsim_utils import PoseAirSimConnector
-from controls import GRAVITY, PIDController
+from controls import PIDController
 
 # TODO Create status library
 
@@ -368,13 +368,18 @@ class PathPlanning(Process):
                                                    0.0])
 
     def attitude_controller(self):
+        now = datetime.utcnow()
+        dt = (now - self.previous_time).total_seconds()
+        self.previous_time = now
         self.thrust_cmd = self.controls.altitude_control(
-            -self.local_position_target[2],
-            self.local_velocity_target[2],
-            -self.airsim_connector.drone_position[2],
+            self.local_position_target[2],
+            self.local_velocity_target[2], 
+            self.airsim_connector.drone_position[2],
             self.airsim_connector.drone_velocity[2],
-            self.airsim_connector.drone_attitude, 
-            2.506317377090454)
+            self.airsim_connector.drone_attitude,
+            dt,
+            2.506317377090454
+        )
         roll_pitch_rate_cmd = self.controls.roll_pitch_controller(
             self.local_acceleration_target[0:2],
             self.airsim_connector.drone_attitude,
@@ -405,7 +410,8 @@ class PathPlanning(Process):
                                                            self.thrust_cmd)
         )
         ) """
-        throttle_cmd = self.thrust_cmd / 4.179446268
+
+        throttle_cmd = (self.thrust_cmd / 4.4482216153) / 4.179446268
         self.airsim_connector.acceleration_command(
             roll=self.moment_cmd[0],
             pitch=self.moment_cmd[1],
