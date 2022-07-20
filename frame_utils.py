@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+import math as m
 
 def constrain(a, bottom, top):
     min = a if a < top else top
@@ -35,6 +36,9 @@ def euler2RM(roll,pitch,yaw):
 
 def magnitude_sq(a, b, c):
     return (a*a+b*b+c*c)
+
+def magnitude(a, b, c):
+    return m.sqrt((a*a+b*b+c*c))
 
 def identity_matrix():
     R = np.array([[1.0,0.0,0.0],[0.0,1.0,0.0],[0.0,0.0,1.0]])

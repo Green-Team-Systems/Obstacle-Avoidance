@@ -356,6 +356,7 @@ class PathPlanning(Process):
 
     def position_controller(self):
         self.attitude_target = np.array((0.0, 0.0, self.yaw_cmd))
+        print(f'Position Command { self.local_position_target}')
         acceleration_cmd = self.controls.lateral_position_control(
             self.local_position_target[0:2],
             self.local_velocity_target[0:2],
@@ -528,7 +529,7 @@ class PathPlanning(Process):
         if command.move_by == "position":
 
             self.local_position_target = [
-                command.position.X, command.position.Y, command.position.Z]
+                30, 10, -2]
             self.local_velocity_target = [
                 command.velocity.vx, command.velocity.vy, command.velocity.vz
             ]
