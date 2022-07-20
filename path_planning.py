@@ -413,6 +413,9 @@ class PathPlanning(Process):
         ) """
 
         throttle_cmd = (self.thrust_cmd / 4.4482216153) / 4.179446268
+        print("Current Throttle command {}".format(throttle_cmd))
+        print("Moment Command: {} Thrust Command: {}".format(self.moment_cmd,
+                                                           self.thrust_cmd))
         self.airsim_connector.acceleration_command(
             roll=self.moment_cmd[0],
             pitch=self.moment_cmd[1],

@@ -200,7 +200,7 @@ class PoseAirSimConnector(ConnectorBase):
                 pitch_rate=pitch,
                 yaw_rate=yaw,
                 throttle=throttle,
-                duration=1.0,
+                duration=0.02,
                 vehicle_name=self.drone_id
             )
 
