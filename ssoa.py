@@ -1,3 +1,4 @@
+from matplotlib import projections
 import setup_path 
 import airsim
 from enum import Enum
@@ -16,6 +17,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from itertools import groupby
+
+from plot_ssoa import plot_intersect
 
 # OA algorithm that generates new way points based on safety sphere around obstacles
 
@@ -215,7 +218,7 @@ class ClearPathObstacleAvoidance:
             return False
     
     
-    def FrameVector(self, edgepoint):
+    def FrameVector(self):
         length = 5
         kinematicsEstimated = self.client.getMultirotorState().kinematics_estimated
         w_val, x_val, y_val, z_val = (kinematicsEstimated.orientation)
@@ -295,7 +298,16 @@ class ClearPathObstacleAvoidance:
         
         # print("Intersection 1",x1, y1)
         # print("Intersection 2",x2, y2)
+
+    
+    def get_vector(self, pos, waypt):
+        vec = [waypt[0] - pos[0], waypt[1] - pos[1], waypt[2] - pos[2]]
         
+        return vec
+    
+    
+    
+    
     def execute(self):
         print("arming the drone...")
         
@@ -306,18 +318,20 @@ class ClearPathObstacleAvoidance:
         airsim.wait_key('Press any key to lift drone')
         self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
-        # waypoint = [[5,5,0],[10,10,0],[30,28,0]]
-        waypoint = [[1,0,0],[2,0,0],[3,0,0],[4,0,0],[5,0,0]]
+        waypoint = [[5,5,0],[10,10,0],[30,28,0]]
+        # waypoint = [[5,0,0], [7,0,0]]
         
         n = 0
         try:
-            x_pos, y_pos, z_pos = self.estimated_kinematics.position
+            
             
             
             
             while(waypoint != []):
+                x_pos, y_pos, z_pos = self.estimated_kinematics.position
                 #turn lidar data into list
                 overall_point_list = self.scan()
+
                 #choose the row nearest to z = 0 (relative to drone)
                 chosenRowIndex = self.chooseRow(overall_point_list)
                 # print("chosenrow",chosenRowIndex)
@@ -327,31 +341,35 @@ class ClearPathObstacleAvoidance:
                 # print("fixedchosenrow",fixedchosenRow)                
                 filtered_row = self.view_distance_filter(30, fixedchosenRow)
                 if filtered_row != []:
-                #     print(filtered_row[int(len(filtered_row)/2)])
                     edge = self.edgeCoordinates(filtered_row)
-                    # print("edge COORD: ",edge)
-                    v1, v2 = self.FrameVector(edge)
-                    # print("v1:", v1, " v2:", v2)
+
+                    v1, v2 = self.FrameVector()
+                    print("v1:", v1, " v2:", v2)
                     vector = [v1, v2]
-                    self.sphere_intersection(edge, vector, radius = 3)
-                    
-                # filtered_rownp = np.array(filtered_row)
-                # print(filtered_rownp.shape)
-                # print('HEADED TO: ' + str(waypoint[n]))
+                    # self.sphere_intersection(edge, vector, radius = 3)
+                    vec = self.get_vector([x_pos, y_pos, z_pos], waypoint[0])
+                    # self.plot_intersect(vec, [x_pos, y_pos, z_pos], 5, edge)
+            
+            
                 self.client.moveToPositionAsync(waypoint[n][0],waypoint[n][1],waypoint[n][2], 5)
                 if (self.checkIfAtWaypt(waypoint[n])):
-                    # x_pos, y_pos, z_pos = self.estimated_kinematics.position
-                    # print(str(x_pos) + ',' + str(y_pos))
                     waypoint.pop(0)
-                    
-                    
                     print('REACHED')
+            
+            
                 
             print(waypoint)    
             self.client.moveByVelocityAsync(0, 0, 0, 5).join()    
+            
+            data = [vec, [x_pos, y_pos, z_pos], 5, edge]
+            with open('graphdata.json', 'w') as f:
+                json.dump(data, f)
+            
+            
             # arrived at goal
             self.stop()
             print('Reached Goal')
+        
             
             
         except KeyboardInterrupt:
@@ -373,6 +391,7 @@ if __name__ == "__main__":
   
     args = arg_parser.parse_args(args) 
     ssoa = ClearPathObstacleAvoidance()
+    
     try:
         ssoa.execute()
     except KeyboardInterrupt:
