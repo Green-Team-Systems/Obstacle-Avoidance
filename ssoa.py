@@ -195,7 +195,6 @@ class ClearPathObstacleAvoidance:
             
             x_pos, y_pos, z_pos = (_estimated_kinematics.position)
             edge = [x_pos + endpoint[0], y_pos + endpoint[1], z_pos + endpoint[2]]
-            # print("Edge COORD: ", edge)
         
         return edge
             
@@ -227,7 +226,7 @@ class ClearPathObstacleAvoidance:
         v1 = points[0] - x_pos
         v2 = points[1] - y_pos
         
-        print("v1:", v1, " v2:", v2)
+        # print("v1:", v1, " v2:", v2)
         
         return v1, v2
         
@@ -262,9 +261,41 @@ class ClearPathObstacleAvoidance:
      
         return roll_x, pitch_y, yaw_z # in radians               
         
+    def sphere_intersection(self, edgepoint, vector, radius):
+        # ss = (x - edge_x)^2 + (y  - edge_y)^2
+        # (y - y_pos) = (vector_x / vector_y) * (x - x_pos)
         
-    
-    
+        
+        _estimated_kinematics = self.estimated_kinematics
+        x_pos, y_pos, z_pos = self.estimated_kinematics.position
+        # negative x to account for euclidean space config 
+        if vector[0] < 0:
+            vector[0] = 0.01
+        elif vector[1] < 0:
+            vector[1] = 0.01
+        slope = -vector[0] / vector[1]
+        
+        z = (-(slope) * x_pos) + y_pos - edgepoint[1]
+        a = 1 + math.pow(vector[0]/ vector[1], 2)
+        b = -2 * edgepoint[0] + (2 * (slope) * z)
+        c = math.pow(z, 2) + math.pow(edgepoint[0], 2)
+        
+        print("slope", slope)
+        print("Edge Coord",edgepoint)
+        print("a:", a, " b:", b, " c:", c, " z:", z)
+        
+        #quadratic formula
+        x1 = (-b + math.sqrt(math.pow(b, 2) - 4 * a * c)) / (2 * a)
+        x2 = (-b - math.sqrt(math.pow(b, 2) - 4 * a * c)) / (2 * a)
+        
+        y1 = math.sqrt(math.pow(radius, 2) - math.pow(x1 - edgepoint[0], 2)) + edgepoint[1]
+        y2 = math.sqrt(math.pow(radius, 2) - math.pow(x2 - edgepoint[0], 2)) + edgepoint[1]
+        
+        
+        
+        # print("Intersection 1",x1, y1)
+        # print("Intersection 2",x2, y2)
+        
     def execute(self):
         print("arming the drone...")
         
@@ -275,7 +306,8 @@ class ClearPathObstacleAvoidance:
         airsim.wait_key('Press any key to lift drone')
         self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
-        waypoint = [[5,5,0],[10,10,0],[30,28,0]]
+        # waypoint = [[5,5,0],[10,10,0],[30,28,0]]
+        waypoint = [[1,0,0],[2,0,0],[3,0,0],[4,0,0],[5,0,0]]
         
         n = 0
         try:
@@ -297,7 +329,11 @@ class ClearPathObstacleAvoidance:
                 if filtered_row != []:
                 #     print(filtered_row[int(len(filtered_row)/2)])
                     edge = self.edgeCoordinates(filtered_row)
-                    self.FrameVector(edge)
+                    # print("edge COORD: ",edge)
+                    v1, v2 = self.FrameVector(edge)
+                    # print("v1:", v1, " v2:", v2)
+                    vector = [v1, v2]
+                    self.sphere_intersection(edge, vector, radius = 3)
                     
                 # filtered_rownp = np.array(filtered_row)
                 # print(filtered_rownp.shape)
