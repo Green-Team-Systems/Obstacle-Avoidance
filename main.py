@@ -51,6 +51,10 @@ if __name__ == "__main__":
         trajectory = json.loads(f.read())
     if use_oa:
         for drone_id, queue, sensor_name in zip(drone_ids, path_planning_queues, lidar_ids):
+            sensor_choice = {
+                "method": "AirSim",
+                "hardware": "Velodyne Puck"
+            }
             oa_module = ObstacleAvoidance(
                 queue,
                 drone_id,
