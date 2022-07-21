@@ -92,6 +92,7 @@ class PathPlanning(Process):
         self.last_position = PosVec3()
         self.current_time = datetime.utcnow()
         self.previous_time = datetime.utcnow()
+        self.previous_time_pos = datetime.utcnow()
         self.local_position_target = [float(), float(), float()]  # Meters
         self.moment_cmd = [float(), float(), float()]  # Meters
         self.local_velocity_target = [
@@ -356,12 +357,17 @@ class PathPlanning(Process):
 
     def position_controller(self):
         self.attitude_target = np.array((0.0, 0.0, self.yaw_cmd))
-        print(f'Position Command { self.local_position_target}')
+        #print(f'Position Command { self.local_position_target}')
+        now = datetime.utcnow()
+        dt = (now - self.previous_time).total_seconds()
+        self.previous_time_pos = now
         acceleration_cmd = self.controls.lateral_position_control(
             self.local_position_target[0:2],
             self.local_velocity_target[0:2],
             self.airsim_connector.drone_position[0:2],
-            self.airsim_connector.drone_velocity[0:2])
+            self.airsim_connector.drone_velocity[0:2],
+            dt
+        )
         print(f'Drone Position: {self.airsim_connector.drone_position}')
         print("Acceleration Command: {} | {}".format(acceleration_cmd[0], acceleration_cmd[1]))
         self.local_acceleration_target = np.array([acceleration_cmd[0],
@@ -390,7 +396,7 @@ class PathPlanning(Process):
             self.attitude_target[2],
             self.airsim_connector.drone_attitude[2])
         self.body_rate_target = np.array(
-            [roll_pitch_rate_cmd[0], -roll_pitch_rate_cmd[1], yawrate_cmd])
+            [roll_pitch_rate_cmd[0], roll_pitch_rate_cmd[1], yawrate_cmd])
         self.log.info("{}|{}|message|{}".format(
             datetime.utcnow(),
             self.drone_id,
@@ -413,13 +419,13 @@ class PathPlanning(Process):
         ) """
 
         throttle_cmd = (self.thrust_cmd / 4.4482216153) / 4.179446268
-        print("Current Throttle command {}".format(throttle_cmd))
+        #print("Current Throttle command {}".format(throttle_cmd))
         print("Moment Command: {} Thrust Command: {}".format(self.moment_cmd,
-                                                           self.thrust_cmd))
+                                                            throttle_cmd))
         self.airsim_connector.acceleration_command(
-            roll=self.moment_cmd[0],
-            pitch=self.moment_cmd[1],
-            yaw=self.moment_cmd[2],
+            roll=0,
+            pitch=self.body_rate_target[1],
+            yaw=0,
             throttle=throttle_cmd,
             heading=np.degrees(-self.yaw_cmd)
         )
@@ -532,7 +538,7 @@ class PathPlanning(Process):
         if command.move_by == "position":
 
             self.local_position_target = [
-                30, 10, -2]
+                30, 0, -2]
             self.local_velocity_target = [
                 command.velocity.vx, command.velocity.vy, command.velocity.vz
             ]

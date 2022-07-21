@@ -157,7 +157,7 @@ class PoseAirSimConnector(ConnectorBase):
             state_data.kinematics_estimated.linear_velocity)
         self.drone_velocity = self.current_velocity.toPythonList()
         self.drone_position = self.global_position.toPythonList()
-        self.drone_gyro = vector_to_list(state_data.kinematics_estimated.angular_acceleration)
+        self.drone_gyro = vector_to_list(state_data.kinematics_estimated.angular_velocity)
         self.drone_attitude = self.roll_pitch_yaw(state_data.kinematics_estimated.orientation)
         print("Drone Attitude: {}".format(self.drone_attitude))
 
