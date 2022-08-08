@@ -1,12 +1,44 @@
 from dis import dis
+from re import X
 from matplotlib import projections
 import matplotlib.pyplot as plt
 import numpy as np
 import math as m
+from numpy import sin, cos
+from itertools import product, combinations
 from utils.data_classes import PosVec3, MovementCommand, VelVec3
 
 def pow(a):
     return a * a
+
+def magnitude(a):
+    return np.sqrt(np.dot(a, a))
+
+def closest(wp, point: PosVec3, radius):
+    wp = np.array(wp)
+    x = [point.X - radius, point.X + radius]
+    y = [point.Y - radius, point.Y + radius]
+    z = [point.Z - radius, point.Z + radius]
+    min = m.inf
+    pts = np.stack((x, y, z), 0)
+    vertices = (np.array(np.meshgrid(*pts)).T).reshape(2**3,3)
+    for x in vertices:
+        dist = np.linalg.norm(x - wp)
+        if dist < min: 
+            min = dist
+            i = x
+    return i
+
+def rotation_angle(cube_point, wp_1, wp_2):
+    wp_1 = np.array(wp_1)
+    wp_2 = np.array(wp_2)
+    cube_point = np.array(cube_point)
+    vector_1 = wp_2 - wp_1
+    vector_2 = cube_point - wp_1
+    theta = np.dot(vector_1, vector_2) / (magnitude(vector_1) *  magnitude(vector_2))
+    theta = m.degrees(np.arccos(theta))
+    
+    return theta
 
 def plot_new_point(point: PosVec3):
     ax.scatter(point.X, point.Y, point.Z, color = 'y', marker = '*', s=100)
@@ -18,6 +50,22 @@ def plot_sphere(sphere_pos: PosVec3, radius: float):
     z = (radius) * np.cos(v) + sphere_pos.Z
     ax.plot_wireframe(x,y,z)
 
+def plot_cube(point: PosVec3, angle, radius):
+    theta = np.radians(angle)
+    d = [-radius, radius]
+    x = [point.X - radius, point.X + radius]
+    y = [point.Y - radius, point.Y + radius]
+    z = [point.Z - radius, point.Z + radius]
+    for s, e in combinations(np.array(list(product(d,d,d))), 2):
+        if np.sum(np.abs(s-e)) == d[1] - d[0]:
+            s_rotated = [s[0] * cos(theta) - s[1] * sin(theta) + point.X, 
+                        s[0] * sin(theta) + s[1] * cos(theta) + point.Y,
+                        s[2] + point.Z]
+            e_rotated = [e[0] * cos(theta) - e[1] * sin(theta) + point.X, 
+                        e[0] * sin(theta) + e[1] * cos(theta) + point.Y,
+                        e[2] + point.Z]
+            ax.plot3D(*zip(s_rotated,e_rotated), color="g")
+
 def plot_line(pos_1: PosVec3, pos_2: PosVec3, mark):
    ax.plot([pos_1.X, pos_2.X], [pos_1.Y, pos_2.Y], [pos_1.Z, pos_2.Z], color = mark)
 
@@ -25,6 +73,19 @@ def plot_line_new(pos_1: PosVec3, pos_2: PosVec3, new_pos: PosVec3):
    ax.plot([new_pos.X, pos_2.X], [new_pos.Y, pos_2.Y], [new_pos.Z, pos_2.Z], color = 'g')
    ax.plot([pos_1.X, new_pos.X], [pos_1.Y, new_pos.Y], [pos_1.Z, new_pos.Z], color = 'g')
 
+def get_perp(wp1: PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
+    slope = (wp2.Y - wp1.Y) / (wp2.X - wp1.X)
+    slope_inv = -1 / slope
+    
+    a = 1 + m.pow(slope_inv, 2)
+    b = -2 * obstacle_pos.X + (2 * (slope_inv) * obstacle_pos.X)
+    c = (m.pow(slope_inv, 2) * m.pow(obstacle_pos.X, 2)) + m.pow(obstacle_pos.X, 2) - m.pow(radius_saftey, 2)
+    x1 = (-b + m.sqrt(m.pow(b, 2) - 4 * a * c)) / (2 * a)
+    x2 = (-b - m.sqrt(m.pow(b, 2) - 4 * a * c)) / (2 * a)
+    y1 = (slope_inv) * (x1 - obstacle_pos.X) + obstacle_pos.Y
+    y2 = (slope_inv) * (x2 - obstacle_pos.X) + obstacle_pos.Y
+    
+    return [x1,y1, x2, y2]
 
 def combine_obstacles(obstacles: list):
     for x in range(1, len(obstacles)):
@@ -114,14 +175,18 @@ def get_new_waypoint_josh(wp1, wp2: PosVec3, obstacle_pos: PosVec3, radius_safte
     print("x2 y2", x2, y2)
     return [x1,y1, x2, y2]
 
+def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
+    poo = 0
+
 wp_1 = PosVec3()
 wp_2 = PosVec3()
 new_wp = PosVec3()
 obstacle_pos = PosVec3()
-way_points = [[1, 1, 1], [10, 10, 3]]
-obstacles = [[5, 5, 1, 2]]
+way_points = [[1, 1, 1], [10, 1, 1]]
+obstacles = [[6, 1, 1, 2]]
 #obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
 #obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
+
 combine_obstacles(obstacles)
 try:
     while True:
@@ -135,7 +200,6 @@ ax.set_zlim([0,10])
 x = 1
 z = len(way_points)
 while x < z:
-#for x in range(1, len(way_points)):
     wp_1.X = way_points[x - 1][0]
     wp_1.Y = way_points[x - 1][1]
     wp_1.Z = way_points[x - 1][2]
@@ -150,15 +214,11 @@ while x < z:
         radius = obstacles[y][3]
         collision = collision_possability(wp_1, wp_2, obstacle_pos, radius)
         if collision == True and already_intersect == False:
+            cube_point = closest(way_points[x - 1], obstacle_pos, radius)
+            theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2])
+            print(theta)
+            plot_cube(obstacle_pos, 45, radius)
             point = get_new_waypoint_avi(wp_2, obstacle_pos, radius)
-            # point  = get_new_waypoint_josh(wp_1,wp_2, obstacle_pos, radius)
-            # slope = (wp_2.Y - wp_1.Y) / (wp_2.X - wp_1.X)
-            # slope_inv = -1 / slope
-            # t = np.linspace(obstacle_pos.X - 5,obstacle_pos.X + 5,50)
-            # y = slope_inv * (t - obstacle_pos.X) + obstacle_pos.Y
-            # ax.plot(t, y, 'b', label = 'perpendicular line')
-            # ax.scatter(point[0], point[1], 0, color = 'y', marker = '*', s=100)
-            # ax.scatter(point[2], point[3], 0, color = 'g', marker = '*', s=100)
             new_wp.X = point[0]
             new_wp.Y = point[1]
             new_wp.Z = point[2]
