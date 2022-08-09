@@ -1,6 +1,7 @@
 from dis import dis
 from re import X
 from tkinter import Y
+from turtle import pos
 from matplotlib import projections
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,8 +28,7 @@ def closest(wp, point: PosVec3, radius):
         dist = np.linalg.norm(x - wp)
         if dist < min: 
             min = dist
-            i = x
-    print(i)        
+            i = x  
     return i
 
 def rotation_angle(cube_point, wp_1, wp_2):
@@ -37,12 +37,37 @@ def rotation_angle(cube_point, wp_1, wp_2):
     cube_point = np.array(cube_point)
     vector_1 = wp_2 - wp_1
     vector_2 = cube_point - wp_1
-    print(vector_1)
-    print(vector_2)
     theta = np.dot(vector_1, vector_2) / (magnitude(vector_1) *  magnitude(vector_2))
     theta = m.degrees(np.arccos(theta))
     
     return theta
+
+def rotate_cube(point: PosVec3, radius, theta):
+    x = [point.X - radius, point.X + radius]
+    y = [point.Y - radius, point.Y + radius]
+    z = [point.Z - radius, point.Z + radius]
+    pts = np.stack((x, y, z), 0)
+    vertices = (np.array(np.meshgrid(*pts)).T).reshape(2**3,3)
+    e = PosVec3()
+    for i in vertices:
+        print(i)
+        a = i.reshape(3,1)
+        print(a)
+        b = np.matmul(rotate_z(theta, point), a)
+        print(b)
+        print(b.reshape(1,3))
+        print("\n")
+        ax.scatter(b[0], b[1], b[2], color = 'y', marker = '*', s=100)
+
+def rotate_z(theta, pos: PosVec3):
+    theta = np.deg2rad(theta)
+    cos_angle = np.around(cos(theta), 5)
+    sin_angle = np.around(sin(theta), 5)
+    return np.matrix([[cos_angle, -sin_angle, (-pos.X * cos_angle + pos.Y * sin_angle + pos.X)],
+                        [sin_angle, cos_angle, (-pos.X * sin_angle - pos.Y * cos_angle + pos.Y)],
+                        [0, 0, 1]])
+
+
 
 def plot_new_point(point: PosVec3):
     ax.scatter(point.X, point.Y, point.Z, color = 'y', marker = '*', s=100)
@@ -129,7 +154,6 @@ def get_new_waypoint_avi(wp: PosVec3, obstacle_pos: PosVec3, radius_saftey: floa
     way_point = np.array([wp.X, wp.Y, wp.Z])
     dist = np.linalg.norm(way_point - center)
     point = center + (radius_saftey / dist) * (way_point - center)
-    return point
     # radius_saftey = radius_saftey * 1.5
     # u = np.linspace(0, np.pi, 20)
     # v = np.linspace(0, 2 * np.pi, 40)
@@ -159,6 +183,7 @@ def get_new_waypoint_avi(wp: PosVec3, obstacle_pos: PosVec3, radius_saftey: floa
     # location = a[0][min]
     # # print(f' location value: {location[0]}')
     # return location[0]
+    return point
 
 def get_new_waypoint_josh(wp1, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
     slope = (wp2.Y - wp1.Y) / (wp2.X - wp1.X)
@@ -186,8 +211,8 @@ wp_1 = PosVec3()
 wp_2 = PosVec3()
 new_wp = PosVec3()
 obstacle_pos = PosVec3()
-way_points = [[1, 1, 1], [1, 10, 10]]
-obstacles = [[0, 5, 5, 2]]
+way_points = [[1, 1, 0], [10, 1, 3]]
+obstacles = [[5, 1, 1, 1]]
 #obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
 #obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
 
@@ -198,9 +223,9 @@ try:
 except ValueError:
     pass
 ax = plt.axes(projection = '3d')
-ax.set_xlim([-10,10])
-ax.set_ylim([-10,10])
-ax.set_zlim([-10,10])
+ax.set_xlim([0,10])
+ax.set_ylim([0,10])
+ax.set_zlim([0,10])
 x = 1
 z = len(way_points)
 while x < z:
@@ -219,9 +244,10 @@ while x < z:
         collision = collision_possability(wp_1, wp_2, obstacle_pos, radius)
         if collision == True and already_intersect == False:
             cube_point = closest(way_points[x - 1], obstacle_pos, radius)
-            theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], obstacles[y][0:2])
+            theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2])
             print(theta)
-            plot_cube(obstacle_pos, 0, radius)
+            rotate_cube(obstacle_pos, radius, 45)
+            plot_cube(obstacle_pos, 45, radius)
             #point = get_new_waypoint_avi(wp_2, obstacle_pos, radius)
             #new_wp.X = point[0]
             #new_wp.Y = point[1]
