@@ -1,5 +1,6 @@
 from dis import dis
 from re import X
+from tkinter import Y
 from matplotlib import projections
 import matplotlib.pyplot as plt
 import numpy as np
@@ -27,6 +28,7 @@ def closest(wp, point: PosVec3, radius):
         if dist < min: 
             min = dist
             i = x
+    print(i)        
     return i
 
 def rotation_angle(cube_point, wp_1, wp_2):
@@ -35,6 +37,8 @@ def rotation_angle(cube_point, wp_1, wp_2):
     cube_point = np.array(cube_point)
     vector_1 = wp_2 - wp_1
     vector_2 = cube_point - wp_1
+    print(vector_1)
+    print(vector_2)
     theta = np.dot(vector_1, vector_2) / (magnitude(vector_1) *  magnitude(vector_2))
     theta = m.degrees(np.arccos(theta))
     
@@ -182,8 +186,8 @@ wp_1 = PosVec3()
 wp_2 = PosVec3()
 new_wp = PosVec3()
 obstacle_pos = PosVec3()
-way_points = [[1, 1, 1], [10, 1, 1]]
-obstacles = [[6, 1, 1, 2]]
+way_points = [[1, 1, 1], [1, 10, 10]]
+obstacles = [[0, 5, 5, 2]]
 #obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
 #obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
 
@@ -194,9 +198,9 @@ try:
 except ValueError:
     pass
 ax = plt.axes(projection = '3d')
-ax.set_xlim([0,10])
-ax.set_ylim([0,10])
-ax.set_zlim([0,10])
+ax.set_xlim([-10,10])
+ax.set_ylim([-10,10])
+ax.set_zlim([-10,10])
 x = 1
 z = len(way_points)
 while x < z:
@@ -215,18 +219,18 @@ while x < z:
         collision = collision_possability(wp_1, wp_2, obstacle_pos, radius)
         if collision == True and already_intersect == False:
             cube_point = closest(way_points[x - 1], obstacle_pos, radius)
-            theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2])
+            theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], obstacles[y][0:2])
             print(theta)
-            plot_cube(obstacle_pos, 45, radius)
-            point = get_new_waypoint_avi(wp_2, obstacle_pos, radius)
-            new_wp.X = point[0]
-            new_wp.Y = point[1]
-            new_wp.Z = point[2]
+            plot_cube(obstacle_pos, 0, radius)
+            #point = get_new_waypoint_avi(wp_2, obstacle_pos, radius)
+            #new_wp.X = point[0]
+            #new_wp.Y = point[1]
+            #new_wp.Z = point[2]
             plot_line(wp_1, wp_2, 'r')
-            plot_new_point(new_wp)
-            plot_line_new(wp_1, wp_2, new_wp)
-            way_points.insert(x, point.tolist())
-            z += 1
+            #plot_new_point(new_wp)
+            #plot_line_new(wp_1, wp_2, new_wp)
+            #way_points.insert(x, point.tolist())
+            #z += 1
             already_intersect = True
         elif already_intersect == True:
             plot_line(wp_1, wp_2, 'r')
