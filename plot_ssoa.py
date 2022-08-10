@@ -6,8 +6,10 @@ from matplotlib import projections
 import matplotlib.pyplot as plt
 import numpy as np
 import math as m
-from numpy import sin, cos
+from numpy import array, sin, cos
 from itertools import product, combinations
+
+import numpy
 from utils.data_classes import PosVec3, MovementCommand, VelVec3
 
 def pow(a):
@@ -48,26 +50,26 @@ def rotate_cube(point: PosVec3, radius, theta):
     z = [point.Z - radius, point.Z + radius]
     pts = np.stack((x, y, z), 0)
     vertices = (np.array(np.meshgrid(*pts)).T).reshape(2**3,3)
-    e = PosVec3()
+    new_vertices = []
     for i in vertices:
-        print(i)
+        z_value = i[2]
         a = i.reshape(3,1)
-        print(a)
+        a[2] = 1
         b = np.matmul(rotate_z(theta, point), a)
-        print(b)
-        print(b.reshape(1,3))
-        print("\n")
+        b[2] = z_value
         ax.scatter(b[0], b[1], b[2], color = 'y', marker = '*', s=100)
+        new_vertices.append([b[0,0], b[1,0], b[2,0]])
+
+    return np.array(new_vertices)
 
 def rotate_z(theta, pos: PosVec3):
     theta = np.deg2rad(theta)
     cos_angle = np.around(cos(theta), 5)
     sin_angle = np.around(sin(theta), 5)
+
     return np.matrix([[cos_angle, -sin_angle, (-pos.X * cos_angle + pos.Y * sin_angle + pos.X)],
                         [sin_angle, cos_angle, (-pos.X * sin_angle - pos.Y * cos_angle + pos.Y)],
                         [0, 0, 1]])
-
-
 
 def plot_new_point(point: PosVec3):
     ax.scatter(point.X, point.Y, point.Z, color = 'y', marker = '*', s=100)
@@ -79,7 +81,7 @@ def plot_sphere(sphere_pos: PosVec3, radius: float):
     z = (radius) * np.cos(v) + sphere_pos.Z
     ax.plot_wireframe(x,y,z)
 
-def plot_cube(point: PosVec3, angle, radius):
+def plot_cube(point: PosVec3, radius, angle):
     theta = np.radians(angle)
     d = [-radius, radius]
     x = [point.X - radius, point.X + radius]
@@ -132,7 +134,6 @@ def combine_obstacles(obstacles: list):
             del obstacles[x]
             obstacles.insert(x, sphere) 
             
-
 def collision_possability(wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
 
     a = pow(wp_2.X  - wp_1.X) + pow(wp_2.Y  - wp_1.Y) + pow(wp_2.Z  - wp_1.Z)
@@ -148,63 +149,7 @@ def collision_possability(wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, r
     else:
         return True
 
-def get_new_waypoint_avi(wp: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
-    radius_saftey = radius_saftey
-    center = np.array([obstacle_pos.X, obstacle_pos.Y, obstacle_pos.Z])
-    way_point = np.array([wp.X, wp.Y, wp.Z])
-    dist = np.linalg.norm(way_point - center)
-    point = center + (radius_saftey / dist) * (way_point - center)
-    # radius_saftey = radius_saftey * 1.5
-    # u = np.linspace(0, np.pi, 20)
-    # v = np.linspace(0, 2 * np.pi, 40)
-    # x = radius_saftey * np.outer(np.sin(v), np.cos(u)) + obstacle_pos.X
-    # y = radius_saftey * np.outer(np.sin(v), np.sin(u)) + obstacle_pos.Y
-    # z = radius_saftey * np.outer(np.cos(v), np.ones_like(u)) + obstacle_pos.Z
-    # # x = radius_saftey * np.cos(u) * np.sin(v) + obstacle_pos.X
-    # # y = radius_saftey * np.sin(u)* np.sin(v) + obstacle_pos.Y
-    # # z = radius_saftey * np.cos(v) * np.ones_like(u) + obstacle_pos.Z
-    # # x = np.array((1, 2, 3))
-    # # y = np.array((1, 2, 3))
-    # # z = np.array((1, 2, 3))
-    # # print(f'u value: {u}')
-    # # print(f'v value: {v}')
-    # # print(f'u * v value: {np.sin(u)*np.sin(v)}')
-    # a = np.dstack((x, y, z))
-    # b = np.array((wp.X, wp.Y, wp.Z))
-    # c = b - a
-    # dist = np.linalg.norm(c, axis=-1)
-    # # print(f' a value: {a}')
-    # # print(f' b value: {b}')
-    # # print(f' c value: {c}')
-    # # print(f' dist value: {dist}')
-    # min = np.nanargmin(dist, axis = 1)
-    # # print(f' min value: {np.nanmin(dist, axis = 1)}')
-    # # print(f' min value index: {min}')
-    # location = a[0][min]
-    # # print(f' location value: {location[0]}')
-    # return location[0]
-    return point
-
-def get_new_waypoint_josh(wp1, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
-    slope = (wp2.Y - wp1.Y) / (wp2.X - wp1.X)
-    slope_inv = -1 / slope
-    a = 1 + m.pow(slope_inv, 2)
-    b = -2 * obstacle_pos.X + (2 * (slope_inv) * obstacle_pos.X)
-    c = (m.pow(slope_inv, 2) * m.pow(obstacle_pos.X, 2)) + m.pow(obstacle_pos.X, 2) - m.pow(radius_saftey, 2)
-    print(slope_inv)
-    print("a: " + str(a))
-    print("b: " + str(b))
-    print("c: " + str(c))
-    print(m.pow(b,2) - 4 * a * c)
-    x1 = (-b + m.sqrt(m.pow(b, 2) - 4 * a * c)) / (2 * a)
-    x2 = (-b - m.sqrt(m.pow(b, 2) - 4 * a * c)) / (2 * a)
-    y1 = m.sqrt(m.pow(radius_saftey, 2) - m.pow(x1 - obstacle_pos.X, 2)) + obstacle_pos.Y
-    y2 = m.sqrt(m.pow(radius_saftey, 2) - m.pow(x2 - obstacle_pos.X, 2)) + obstacle_pos.Y
-    print("x1 y1", x1, y1)
-    print("x2 y2", x2, y2)
-    return [x1,y1, x2, y2]
-
-def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
+def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vertices: list, radius_saftey: float):
     poo = 0
 
 wp_1 = PosVec3()
@@ -215,19 +160,20 @@ way_points = [[1, 1, 0], [10, 1, 3]]
 obstacles = [[5, 1, 1, 1]]
 #obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
 #obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
-
 combine_obstacles(obstacles)
 try:
     while True:
         obstacles.remove(0)
 except ValueError:
     pass
+
 ax = plt.axes(projection = '3d')
 ax.set_xlim([0,10])
 ax.set_ylim([0,10])
 ax.set_zlim([0,10])
 x = 1
 z = len(way_points)
+
 while x < z:
     wp_1.X = way_points[x - 1][0]
     wp_1.Y = way_points[x - 1][1]
@@ -246,8 +192,8 @@ while x < z:
             cube_point = closest(way_points[x - 1], obstacle_pos, radius)
             theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2])
             print(theta)
-            rotate_cube(obstacle_pos, radius, 45)
-            plot_cube(obstacle_pos, 45, radius)
+            cube_points = rotate_cube(obstacle_pos, radius, theta)
+            plot_cube(obstacle_pos, radius, theta)
             #point = get_new_waypoint_avi(wp_2, obstacle_pos, radius)
             #new_wp.X = point[0]
             #new_wp.Y = point[1]
