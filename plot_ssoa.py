@@ -75,12 +75,13 @@ def rotate_z(theta, pos: PosVec3):
 def plot_new_point(point: PosVec3):
     ax.scatter(point.X, point.Y, point.Z, color = 'y', marker = '*', s=100)
 
-def plot_sphere(sphere_pos: PosVec3, radius: float):
+def plot_sphere(sphere_pos: PosVec3, radius: float, col:str):
     u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
     x = (radius) * np.cos(u)*np.sin(v) + sphere_pos.X
     y = (radius) * np.sin(u)*np.sin(v) + sphere_pos.Y
     z = (radius) * np.cos(v) + sphere_pos.Z
-    ax.plot_wireframe(x,y,z)
+    
+    ax.plot_wireframe(x,y,z, color=col)
 
 def plot_cube(point: PosVec3, radius, angle):
     theta = np.radians(angle)
@@ -102,8 +103,8 @@ def plot_line(pos_1: PosVec3, pos_2: PosVec3, mark):
    ax.plot([pos_1.X, pos_2.X], [pos_1.Y, pos_2.Y], [pos_1.Z, pos_2.Z], color = mark)
 
 def plot_line_new(pos_1: PosVec3, pos_2: PosVec3, new_pos: PosVec3):
-   ax.plot([new_pos.X, pos_2.X], [new_pos.Y, pos_2.Y], [new_pos.Z, pos_2.Z], color = 'g')
-   ax.plot([pos_1.X, new_pos.X], [pos_1.Y, new_pos.Y], [pos_1.Z, new_pos.Z], color = 'g')
+   ax.plot([new_pos.X, pos_2.X], [new_pos.Y, pos_2.Y], [new_pos.Z, pos_2.Z], color = 'b')
+   ax.plot([pos_1.X, new_pos.X], [pos_1.Y, new_pos.Y], [pos_1.Z, new_pos.Z], color = 'b')
 
 def get_perp(wp1: PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
     slope = (wp2.Y - wp1.Y) / (wp2.X - wp1.X)
@@ -179,10 +180,26 @@ wp_1 = PosVec3()
 wp_2 = PosVec3()
 new_wp = PosVec3()
 obstacle_pos = PosVec3()
-way_points = [[1, 1, 1], [5.75, 5.75, 5.75]]
-obstacles = [[5, 5, 5, 1]]
-#obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
-#obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
+way_points = [[10,10,6], [1,1,1]]
+# obstacles = [[5, 5, 5, 1],[8,8,8,2]]
+# obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
+obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
+ax = plt.axes(projection = '3d')
+ax.set_xlim([0,10])
+ax.set_ylim([0,10])
+ax.set_zlim([0,10])
+x = 1
+z = len(way_points)
+
+for obstacle in obstacles:
+    obstacle_p = PosVec3()
+    obstacle_p.X = obstacle[0]
+    obstacle_p.Y = obstacle[1]
+    obstacle_p.Z = obstacle[2]
+    
+    plot_sphere(obstacle_p, obstacle[3], "r")
+
+
 combine_obstacles(obstacles)
 try:
     while True:
@@ -190,12 +207,7 @@ try:
 except ValueError:
     pass
 
-ax = plt.axes(projection = '3d')
-ax.set_xlim([0,10])
-ax.set_ylim([0,10])
-ax.set_zlim([0,10])
-x = 1
-z = len(way_points)
+
 
 while x < z:
     wp_1.X = way_points[x - 1][0]
@@ -229,7 +241,8 @@ while x < z:
         elif already_intersect == True:
             plot_line(wp_1, wp_2, 'r')
         else:
-            plot_line(wp_1, wp_2, 'g')
-        plot_sphere(obstacle_pos, radius)
+            plot_line(wp_1, wp_2, 'b')
+        
+        plot_sphere(obstacle_pos, radius, "lightblue")
     x+=1
 plt.show()
