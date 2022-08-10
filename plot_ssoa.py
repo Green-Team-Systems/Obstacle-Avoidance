@@ -39,7 +39,8 @@ def rotation_angle(cube_point, wp_1, wp_2):
     cube_point = np.array(cube_point)
     vector_1 = wp_2 - wp_1
     vector_2 = cube_point - wp_1
-    theta = np.dot(vector_1, vector_2) / (magnitude(vector_1) *  magnitude(vector_2))
+    theta = np.around(np.dot(vector_1, vector_2) / (magnitude(vector_1) *  magnitude(vector_2)), 5)
+    print(theta)
     theta = m.degrees(np.arccos(theta))
     
     return theta
@@ -60,7 +61,7 @@ def rotate_cube(point: PosVec3, radius, theta):
         ax.scatter(b[0], b[1], b[2], color = 'y', marker = '*', s=100)
         new_vertices.append([b[0,0], b[1,0], b[2,0]])
 
-    return np.array(new_vertices)
+    return new_vertices
 
 def rotate_z(theta, pos: PosVec3):
     theta = np.deg2rad(theta)
@@ -150,14 +151,36 @@ def collision_possability(wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, r
         return True
 
 def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vertices: list, radius_saftey: float):
-    poo = 0
+    cube_pos = PosVec3
+    potential_wp = []
+    min = m.inf
+    for x in cube_vertices:
+        cube_pos.X = x[0]
+        cube_pos.Y = x[1]
+        cube_pos.Z = x[2]
+        collision_1 = collision_possability(wp1, cube_pos, obstacle_pos, radius_saftey)
+        collision_2 = collision_possability(cube_pos, wp2, obstacle_pos, radius_saftey)
+        if collision_1 == False and collision_2 == False:
+            potential_wp.append(x)
+    potential_wp = np.array(potential_wp)
+    way_point1 = [wp1.X, wp1.Y, wp1.Z]
+    way_point2 = [wp2.X, wp2.Y, wp2.Z]
+    for x in potential_wp:
+        dist_1 = np.linalg.norm(x - way_point1)
+        dist_2 = np.linalg.norm(way_point2 - x)
+        dist = dist_1 + dist_2
+        if dist < min: 
+            min = dist
+            way_point = x  
+    
+    return way_point
 
 wp_1 = PosVec3()
 wp_2 = PosVec3()
 new_wp = PosVec3()
 obstacle_pos = PosVec3()
-way_points = [[1, 1, 0], [10, 1, 3]]
-obstacles = [[5, 1, 1, 1]]
+way_points = [[1, 1, 1], [5.75, 5.75, 5.75]]
+obstacles = [[5, 5, 5, 1]]
 #obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
 #obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
 combine_obstacles(obstacles)
@@ -191,18 +214,17 @@ while x < z:
         if collision == True and already_intersect == False:
             cube_point = closest(way_points[x - 1], obstacle_pos, radius)
             theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2])
-            print(theta)
-            cube_points = rotate_cube(obstacle_pos, radius, theta)
-            plot_cube(obstacle_pos, radius, theta)
-            #point = get_new_waypoint_avi(wp_2, obstacle_pos, radius)
-            #new_wp.X = point[0]
-            #new_wp.Y = point[1]
-            #new_wp.Z = point[2]
+            cube_points = rotate_cube(obstacle_pos, radius, 0)
+            plot_cube(obstacle_pos, radius, 0)
+            point = get_new_waypoint(wp_1, wp_2, obstacle_pos, cube_points, radius)
+            new_wp.X = point[0]
+            new_wp.Y = point[1]
+            new_wp.Z = point[2]
             plot_line(wp_1, wp_2, 'r')
-            #plot_new_point(new_wp)
-            #plot_line_new(wp_1, wp_2, new_wp)
-            #way_points.insert(x, point.tolist())
-            #z += 1
+            plot_new_point(new_wp)
+            plot_line_new(wp_1, wp_2, new_wp)
+            way_points.insert(x, point.tolist())
+            z += 1
             already_intersect = True
         elif already_intersect == True:
             plot_line(wp_1, wp_2, 'r')
