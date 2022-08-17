@@ -18,7 +18,8 @@ import numpy as np
 
 from itertools import groupby
 
-from plot_ssoa import plot_intersect
+from plot_ssoa import run_plot
+from utils.position_utils import position_to_list
 
 # OA algorithm that generates new way points based on safety sphere around obstacles
 
@@ -96,11 +97,12 @@ class ClearPathObstacleAvoidance:
                 xyz = lidar_data.point_cloud[i:i+3]
 
                 # Check at the end of each row for positive y and negative y value at the beginning of new row
-                if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
-                    overall_point_list.append(next_row)
-                    next_row = list()
-                next_row.append(xyz)
-                y_points_last = xyz[1]
+                # if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
+                #     overall_point_list.append(next_row)
+                #     next_row = list()
+                # next_row.append(xyz)
+                # y_points_last = xyz[1]
+                overall_point_list.append(xyz)
         return overall_point_list
 
     """
@@ -294,10 +296,7 @@ class ClearPathObstacleAvoidance:
         y1 = math.sqrt(math.pow(radius, 2) - math.pow(x1 - edgepoint[0], 2)) + edgepoint[1]
         y2 = math.sqrt(math.pow(radius, 2) - math.pow(x2 - edgepoint[0], 2)) + edgepoint[1]
         
-        
-        
-        # print("Intersection 1",x1, y1)
-        # print("Intersection 2",x2, y2)
+          
 
     
     def get_vector(self, pos, waypt):
@@ -306,75 +305,30 @@ class ClearPathObstacleAvoidance:
         return vec
     
     
-    
-    
     def execute(self):
         print("arming the drone...")
-        
+        state = self.client.getMultirotorState()
+
         self.client.armDisarm(True)
 
         self.takeoff()
         
         airsim.wait_key('Press any key to lift drone')
-        self.client.moveToPositionAsync(0, 0, -1, 5).join()
+        starting_pos = position_to_list(state.kinematics_estimated.position)
+        print(starting_pos)
+        #self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
-        waypoint = [[5,5,0],[10,10,0],[30,28,0]]
+        waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[50, starting_pos.Y, starting_pos.Z]]
         # waypoint = [[5,0,0], [7,0,0]]
-        
-        n = 0
-        try:
-            
-            
-            
-            
-            while(waypoint != []):
-                x_pos, y_pos, z_pos = self.estimated_kinematics.position
-                #turn lidar data into list
-                overall_point_list = self.scan()
-
-                #choose the row nearest to z = 0 (relative to drone)
-                chosenRowIndex = self.chooseRow(overall_point_list)
-                # print("chosenrow",chosenRowIndex)
-                #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-                fixedchosenRow = self.gapLabel(1, overall_point_list[chosenRowIndex])
-                # print("index",chosenRowIndex)
-                # print("fixedchosenrow",fixedchosenRow)                
-                filtered_row = self.view_distance_filter(30, fixedchosenRow)
-                if filtered_row != []:
-                    edge = self.edgeCoordinates(filtered_row)
-
-                    v1, v2 = self.FrameVector()
-                    print("v1:", v1, " v2:", v2)
-                    vector = [v1, v2]
-                    # self.sphere_intersection(edge, vector, radius = 3)
-                    vec = self.get_vector([x_pos, y_pos, z_pos], waypoint[0])
-                    # self.plot_intersect(vec, [x_pos, y_pos, z_pos], 5, edge)
-            
-            
-                self.client.moveToPositionAsync(waypoint[n][0],waypoint[n][1],waypoint[n][2], 5)
-                if (self.checkIfAtWaypt(waypoint[n])):
-                    waypoint.pop(0)
-                    print('REACHED')
-            
-            
-                
-            print(waypoint)    
-            self.client.moveByVelocityAsync(0, 0, 0, 5).join()    
-            
-            data = [vec, [x_pos, y_pos, z_pos], 5, edge]
-            with open('graphdata.json', 'w') as f:
-                json.dump(data, f)
-            
-            
-            # arrived at goal
-            self.stop()
-            print('Reached Goal')
-        
-            
-            
-        except KeyboardInterrupt:
-            self.stop()
-        
+        #obstacle dimenesions are 40x40x10
+        state = self.client.getMultirotorState()
+        #position = position_to_list(state.kinematics_estimated.position, starting_position=starting_pos, frame="global")
+        #turn lidar data into list
+        overall_point_list = self.scan()
+        for x in overall_point_list:
+            x.append(1)
+        run_plot(waypoint, overall_point_list)
+    
         
         
         
