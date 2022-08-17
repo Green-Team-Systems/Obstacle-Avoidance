@@ -223,34 +223,30 @@ class ClearPathObstacleAvoidance:
             return False
     
     def spawnObjects(self):
-        # vclient = airsim.VehicleClient()
-        # vclient.confirmConnection()
+        vclient = airsim.VehicleClient()
+        vclient.confirmConnection()
 
-        all_objects = self.client.simListSceneObjects()
+        all_objects = vclient.simListSceneObjects()
         print(f"Objects: {all_objects}")
-        print("object torus5 ", all_objects[18])
-        
+        # print("object torus5 ", all_objects[18])
         # assets = self.client.simListAssets()
         # print(f"Assets: {assets}")
         
         scale = airsim.Vector3r(1.0, 1.0, 1.0)
-
-        asset_name = 'torus5'
-
-
+        
+        asset_name = 'SM_MERGED_TriggerVolume7'
         desired_name = f"{asset_name}_spawn_{random.randint(0, 100)}"
-        pose = airsim.Pose(position_val=airsim.Vector3r(7.0, 0.0, 0.0))
-        #  object_name, asset_name, pose, scale, physics_enabled=False, is_blueprint=False
-        # print("desired name: ", desired_name)
-        # print("asset name: ", asset_name)
-        # print("pose: ", pose)
-        # print("scale: ", scale)
         
-        obj_name = self.client.simSpawnObject(object_name=desired_name, asset_name=asset_name, pose=pose, scale=scale)
-
-        print(f"Created object {obj_name} from asset {asset_name} at pose {pose}, scale {scale}")
+        poses = [[5,0.1,0],[15,8,0], [27,8,0], [38, -4, 0], [50, 1,0]]
+        for pose in poses:
+            # pose = airsim.Pose(position_val=airsim.Vector3r(7.0, 0.0, 0.0))
+            # pose = vclient.simGetObjectPose(all_objects[18])
+            input_pose = airsim.Pose(position_val=airsim.Vector3r(pose[0], pose[1], pose[2]))
         
-        # actor_class = unreal.EditorAssetLibrary.load_blueprint_class("/Game/Assets/Blueprints/torus5_Blueprint.torus5_Blueprint")
+            # obj_name = self.client.simSpawnObject(object_name=desired_name, asset_name=asset_name, pose=pose, scale=scale)
+            obj_name = vclient.simSpawnObject(desired_name, asset_name, input_pose, scale, False, False)
+            print(f"Created object {desired_name} from asset {asset_name} at pose {pose}, scale {scale}")
+        
         
         
         
