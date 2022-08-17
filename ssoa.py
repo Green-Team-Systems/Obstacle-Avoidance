@@ -318,7 +318,7 @@ class ClearPathObstacleAvoidance:
         print(starting_pos)
         #self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
-        waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[50, starting_pos.Y, starting_pos.Z]]
+        waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[70, starting_pos.Y, starting_pos.Z]]
         # waypoint = [[5,0,0], [7,0,0]]
         #obstacle dimenesions are 40x40x10
         state = self.client.getMultirotorState()
