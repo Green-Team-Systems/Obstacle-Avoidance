@@ -1,7 +1,6 @@
 import setup_path 
 import airsim
 from enum import Enum
-
 import sys
 import math
 import time
@@ -11,7 +10,6 @@ import numpy as np
 import time
 from enum import Enum
 import json
-
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -26,15 +24,13 @@ from itertools import groupby
 # check if can go to goal, if not snap 45 degrees to left
 # continue back to going right (relative to the fov window) until wallrun is true
 
-# Makes the drone fly and get Lidar data
-
 class WallTrace:
     
     destination = (-100, 50, 0)
     collisiondist = 4
     vehicle_name,lidar_names = 'Drone1',['LidarSensor1']
 
-    # could use enum
+    #TODO: could use enum
     STATES = {
     "Clear": "TOGOAL",
     "Obstacle": "AVOID"
@@ -48,7 +44,6 @@ class WallTrace:
     def __init__(self):
 
         # connect to the AirSim simulator
-        
         self.client = airsim.MultirotorClient()
         self.client.confirmConnection()
         self.client.enableApiControl(True)
@@ -89,37 +84,6 @@ class WallTrace:
                 y_points_last = xyz[1]
         return overall_point_list
 
-    def getGoalAngle(self):
-        print('turning towards goal')
-        dist = math.sqrt((self.destination[0]**2)+(self.destination[1]**2))
-        #theta = math.acos()
-        rotate = True
-        isTurning = True
-
-        # while rotate == True:
-        #airsim.types.EnvironmentState.position
-        # print(self.client.getMultirotorState().orientation)
-        
-        length = 5
-        # getter method updates this value
-        _estimated_kinematics = self.estimated_kinematics
-        w_val, x_val, y_val, z_val = (_estimated_kinematics.orientation)
-        x_pos, y_pos, z_pos = (_estimated_kinematics.position)
-        roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
-        points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
-        # gps = self.client.getLidarData(lidar_name=self.lidar_names[0],self.vehicle_name=self.vehicle_name).pose.position
-        # print(gps)
-
-        u1 = self.destination[0] - x_pos
-        u2 = self.destination[1] - y_pos
-
-        v1 = points[0] - x_pos
-        v2 = points[1] - y_pos
-
-        angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
-        angleInDegrees = math.degrees(angleInRad)
-
-        return angleInRad, angleInDegrees
 
     """
     Description: Convert a quaternion into euler angles (roll, pitch, yaw)
@@ -185,10 +149,8 @@ class WallTrace:
     Inputs: threshold - distance between points, row of points
     
     Outputs: Fixed row of points
-    
-    Notes:
-    """
 
+    """
     def dataFixer(self, threshold, chosen_row):
 
         #Todo: place 'Gap' at the end / corner
@@ -200,13 +162,18 @@ class WallTrace:
             #calculated the vector distance between two points to see if there's a gap in the lidar data
             if vector_dist > threshold:
                 chosen_row.insert(ind, 'G')
-            
             last_point = np.array([point_val[0], point_val[1]])
 
         return chosen_row
     
+    """
+    Description: Filter lidar data by a distance threshold
+    
+    Inputs: view distance set, row of lidar points
+    
+    Outputs: filtered row of lidar points
+    """
     def view_distance_filter(self, view_distance, fixed_row):
-
         #Todo: make function consider 'G'
         filtered_row = []
         for ind, val in enumerate(fixed_row):
@@ -224,10 +191,7 @@ class WallTrace:
     Inputs: row of lidar points 
     
     Outputs: sum vector
-    
-    Notes:
     """
-
     def calculate_object_sum_vector(self, fixed_row):
         #find left-most chunk of points between gaps
 
@@ -245,7 +209,6 @@ class WallTrace:
 
     def normalize_vector(self, vector):
         
-
         try:
             vx = vector[0] / math.sqrt(vector[0]**2 + vector[1]**2)
             vy = vector[1] / math.sqrt(vector[0]**2 + vector[1]**2)
@@ -261,16 +224,13 @@ class WallTrace:
     Inputs: wall vector
     
     Outputs: Offset wall vector
-    
-    Notes:
     """
-
     def vector_45_from_wall(self, wall_vector):
         #rotates vector by 45 degrees
         x_component = float(-1) * (math.cos(math.sqrt(2)/2) * wall_vector[0]) - (math.sin(math.sqrt(2)/2) * wall_vector[1])
-        
         y_component = (math.sin(math.sqrt(2)/2) * wall_vector[0]) + (math.cos(math.sqrt(2)/2)* wall_vector[1])
         offwallvector = [x_component, y_component]
+        
         return offwallvector
 
     """
@@ -279,29 +239,22 @@ class WallTrace:
     Inputs: objective vector
     
     Outputs: angle in degrees
-    
-    Notes:
     """
-
     def angle_from_drone_to_vector(self, vector):
-        print('turning towards goal')
-        
-        
+
         length = 5
         _estimated_kinematics = self.estimated_kinematics
         w_val, x_val, y_val, z_val = (_estimated_kinematics.orientation)
         x_pos, y_pos, z_pos = (_estimated_kinematics.position)
         roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
         points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
-        # gps = self.client.getLidarData(lidar_name=self.lidar_names[0],self.vehicle_name=self.vehicle_name).pose.position
-        # print(gps)
 
         # u1 = self.destination[0] - x_pos
         # u2 = self.destination[1] - y_pos
 
         u1 = vector[0]
         u2 = vector[1]
-
+        
         [u1,u2] = self.normalize_vector([u1, u2])
 
         v1 = points[0] - x_pos
@@ -309,7 +262,6 @@ class WallTrace:
 
         [v1,v2] = self.normalize_vector([v1, v2])
 
-        
         angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
         angleInDegrees = math.degrees(angleInRad)
         
@@ -322,35 +274,26 @@ class WallTrace:
     Inputs: vector1, vector2
     
     Outputs: angle (radians)
-    
-    Notes:
     """
-
     def angle_of_vectors(self, vector1, vector2):
         [a, b] = vector1
         [c, d] = vector2
 
         dotProduct = a*c + b*d
-            # for three dimensional simply add dotProduct = a*c + b*d  + e*f 
+        # for three dimensional add dotProduct = a*c + b*d  + e*f 
         modOfVector1 = math.sqrt( a*a + b*b)*math.sqrt(c*c + d*d) 
-            # for three dimensional simply add modOfVector = math.sqrt( a*a + b*b + e*e)*math.sqrt(c*c + d*d +f*f) 
+        # for three dimensional add modOfVector = math.sqrt( a*a + b*b + e*e)*math.sqrt(c*c + d*d +f*f) 
         
         if (modOfVector1 == 0):
             return 0
-
         angle = dotProduct/modOfVector1
-        #  print("Cosθ =",angle)
         # angleInDegree = math.degrees(math.acos(angle))
         angleInRad = math.acos(angle)
         #  print("θ =",angleInDegree,"°")
 
         return angleInRad
 
-    def stopDrone(self):
-        print('Stopping')
-        self.client.moveByVelocityAsync(0, 0, 0, 2).join()
-
-
+    # Avoidance functions
     def avoid(self, lidar_data):
         # turn 45 against wall
         # strafe with wall vector
@@ -376,9 +319,6 @@ class WallTrace:
         angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
 
         # TODO: how to pass yaw_mode parameter
-        # self.client.moveByVelocityBodyFrameAsync(0, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
-
-        # self.client.moveByVelocityBodyFrameAsync(norm_sum_vector[0], norm_sum_vector[1], 0, 0.3, yaw_mode = airsim.YawMode(False, angleInDegree))
         x_Vel = norm_sum_vector[0]
         y_Vel = norm_sum_vector[1]
         z_Vel = 0
@@ -386,36 +326,29 @@ class WallTrace:
 
         return angleInDegree, x_Vel, y_Vel, z_Vel
 
-    def goToGoal(self):
-        #tuple[1] to get degrees
-        goalAngle = self.getGoalAngle()[1]
-        # print('going forward')
-        self.client.moveByVelocityBodyFrameAsync(3, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, goalAngle))
 
     # Main execution loop for mode switch and drone movement
     def execute(self, lidar_data):
         at_Goal = False
-        # get lidar
+        #get lidar
         #turn lidar data into list
         overall_point_list = self.scan(lidar_data)
-        #choose the row nearest to z = 0 (relative to drone)
+        #choose the row nearest to z = 0 (relative to drone level)
         chosenRowIndex = self.chooseRow(overall_point_list)
         #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
         fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-        
         # filter lidar array to get only the points within a certain distance
         filtered_row = self.view_distance_filter(5, fixedchosenRow)
+        
+        # Flight mode switch
         if (filtered_row != [] and self.mode == self.STATES["Clear"]):
             self.mode = self.STATES["Obstacle"]
-            
-        
         elif (filtered_row == [] and self.mode == self.STATES["Obstacle"]):
             self.mode = self.STATES["Clear"]
-            
         
+        # execution of the current flight mode
         if self.mode == "TOGOAL":
             # turn to destination coordinates on the xy plane
-            #self.goToGoal()
             x_Vel = 0
             y_Vel = 0
             angleInDegree = 0
@@ -425,6 +358,40 @@ class WallTrace:
         # return angle in degrees, x_Vel, y_Vel, z_Vel
         return angleInDegree, x_Vel, y_Vel, z_Vel
             
+    def getGoalAngle(self):
+        print('turning towards goal')
+        dist = math.sqrt((self.destination[0]**2)+(self.destination[1]**2))
+        #theta = math.acos()
+        rotate = True
+        isTurning = True
 
-                
+        # while rotate == True:
+        #airsim.types.EnvironmentState.position
+        # print(self.client.getMultirotorState().orientation)
+        
+        length = 5
+        # getter method updates this value
+        _estimated_kinematics = self.estimated_kinematics
+        w_val, x_val, y_val, z_val = (_estimated_kinematics.orientation)
+        x_pos, y_pos, z_pos = (_estimated_kinematics.position)
+        roll_x, pitch_y, yaw_z = self.euler_from_quaternion(x_val, y_val, z_val, w_val) #yaw_z is the global radian angle of the drone
+        points = [x_pos + length * math.cos(yaw_z), y_pos + length * math.sin(yaw_z)]
+        # gps = self.client.getLidarData(lidar_name=self.lidar_names[0],self.vehicle_name=self.vehicle_name).pose.position
+        # print(gps)
+
+        u1 = self.destination[0] - x_pos
+        u2 = self.destination[1] - y_pos
+
+        v1 = points[0] - x_pos
+        v2 = points[1] - y_pos
+
+        angleInRad = self.angle_of_vectors((u1,u2), (v1,v2))
+        angleInDegrees = math.degrees(angleInRad)
+
+        return angleInRad, angleInDegrees
+
+    def goToGoal(self):
+        #tuple[1] to get degrees
+        goalAngle = self.getGoalAngle()[1]
+        self.client.moveByVelocityBodyFrameAsync(3, 0, 0, 0.3, yaw_mode = airsim.YawMode(False, goalAngle))
 
