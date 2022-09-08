@@ -294,19 +294,12 @@ class WallTrace:
         return angleInRad
 
     # Avoidance functions
-    def avoid(self, lidar_data):
+    def avoid(self, fixedchosenRow):
         # turn 45 against wall
         # strafe with wall vector
         # break out when filtered view is clear
 
-        overall_point_list = self.scan(lidar_data)
-        #choose the row nearest to z = 0 (relative to drone)
-        chosenRowIndex = self.chooseRow(overall_point_list)
-        #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-        fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
-        
         filtered_row = self.view_distance_filter(5, fixedchosenRow)
-
         # get vector 45 degrees from wall
         if (filtered_row is None):
             return
@@ -328,15 +321,11 @@ class WallTrace:
 
 
     # Main execution loop for mode switch and drone movement
-    def execute(self, lidar_data):
-        at_Goal = False
-        #get lidar
-        #turn lidar data into list
-        overall_point_list = self.scan(lidar_data)
+    def run(self, point_cloud: list):
         #choose the row nearest to z = 0 (relative to drone level)
-        chosenRowIndex = self.chooseRow(overall_point_list)
+        chosenRowIndex = self.chooseRow(point_cloud)
         #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
-        fixedchosenRow = self.dataFixer(1, overall_point_list[chosenRowIndex])
+        fixedchosenRow = self.dataFixer(1, point_cloud[chosenRowIndex])
         # filter lidar array to get only the points within a certain distance
         filtered_row = self.view_distance_filter(5, fixedchosenRow)
         
@@ -353,7 +342,7 @@ class WallTrace:
             y_Vel = 0
             angleInDegree = 0
         elif self.mode == "AVOID":
-            angleInDegree, x_Vel, y_Vel, z_Vel = self.avoid(lidar_data)
+            angleInDegree, x_Vel, y_Vel, z_Vel = self.avoid(fixedchosenRow)
 
         # return angle in degrees, x_Vel, y_Vel, z_Vel
         return angleInDegree, x_Vel, y_Vel, z_Vel

@@ -8,6 +8,7 @@
 # Description: Algorithms and utilities for obstacle avoidance
 # ===============================================================
 import math
+import numpy as np
 
 PRECISION = 4
 
@@ -164,3 +165,184 @@ class RightHandRule(Algorithm):
         else:
             self.moveForward()
             # return [1, 0, 0]
+            
+class WallTrace(Algorithm):
+    STATES = {
+        "Clear": "TOGOAL",
+        "Obstacle": "AVOID"
+        }
+    def __init__(self, view_distance: float):
+        super().__init__()
+        self.view_distance = view_distance
+        self.mode = self.STATES["Clear"]
+
+    """
+    Description: Find closest row parallel to the z level of the drone
+    
+    Inputs: overall_point_list
+    
+    Outputs: row index i
+    
+    Notes:
+    """
+    def chooseRow(self, overall_point_list):
+        top_row = overall_point_list[1] 
+        mid_point_top_level_ind = int(len(top_row) / 2)
+        z_level_row = top_row[mid_point_top_level_ind][2] # initial z val of top row mid
+        i = 1
+
+        for row_index, row in enumerate(overall_point_list):
+            if(len(row) > 0):
+                mid_point = int(len(row) / 2) # index of mid point
+                mid_point_z = row[mid_point][2] # z value of mid point
+                if(abs(mid_point_z) < abs(z_level_row)):
+                    z_level_row = mid_point_z
+
+                    i = row_index
+
+        return i
+
+    """
+    Description: detects gaps between points and returns row of lidar points with a gap symbol
+    
+    Inputs: threshold - distance between points, row of points
+    
+    Outputs: Fixed row of points
+
+    """
+    def dataFixer(self, threshold, chosen_row):
+
+        #Todo: place 'Gap' at the end / corner
+        last_point = np.array([chosen_row[0][0], chosen_row[0][1]])  #list of x and y value of first point
+        for ind, point_val in enumerate(chosen_row):
+            temp = last_point - np.array([point_val[0], point_val[1]])
+            vector_dist = np.sqrt(temp[0]**2 + temp[1]**2)
+
+            #calculated the vector distance between two points to see if there's a gap in the lidar data
+            if vector_dist > threshold:
+                chosen_row.insert(ind, 'G')
+            last_point = np.array([point_val[0], point_val[1]])
+
+        return chosen_row
+        
+    """
+    Description: Filter lidar data by a distance threshold
+    
+    Inputs: view distance set, row of lidar points
+    
+    Outputs: filtered row of lidar points
+    """
+    def view_distance_filter(self, fixed_row, view_distance = 5):
+        #Todo: make function consider 'G'
+        filtered_row = []
+        for ind, val in enumerate(fixed_row):
+            if val != 'G':
+                dist = val[0]
+                if(dist <= view_distance):
+                    filtered_row.append(val)
+
+
+        return filtered_row
+    
+    """
+    Description: Calculate the sum of the vectors from left to right
+    
+    Inputs: row of lidar points 
+    
+    Outputs: sum vector
+    """
+    def calculate_object_sum_vector(self, fixed_row):
+        #find left-most group of points between gaps
+
+        first_point = fixed_row[0]
+        sum_vector = [0, 0]
+        for ind, point in enumerate(fixed_row):
+            #this will break if a G is at the start of the row
+            if point == 'G':
+                break
+            
+            vector = [(point[0] - first_point[0]), (point[1] - first_point[1])]
+            sum_vector = [sum_vector[0] + vector[0], sum_vector[1] + vector[1]]
+            
+        return sum_vector    
+    
+    def normalize_vector(self, vector):
+        
+        try:
+            vx = vector[0] / math.sqrt(vector[0]**2 + vector[1]**2)
+            vy = vector[1] / math.sqrt(vector[0]**2 + vector[1]**2)
+            normalized_vector = [vx, vy]
+        except ZeroDivisionError:
+            return [0,0]
+
+        return normalized_vector
+    
+    """
+    Description: Calculates the offset angle (45 deg) from the wall vector
+    
+    Inputs: wall vector
+    
+    Outputs: Offset wall vector
+    """
+    def vector_45_from_wall(self, wall_vector):
+        #rotates vector by 45 degrees
+        x_component = float(-1) * (math.cos(math.sqrt(2)/2) * wall_vector[0]) - (math.sin(math.sqrt(2)/2) * wall_vector[1])
+        y_component = (math.sin(math.sqrt(2)/2) * wall_vector[0]) + (math.cos(math.sqrt(2)/2)* wall_vector[1])
+        offwallvector = [x_component, y_component]
+        
+        return offwallvector    
+    
+    # Avoidance functions
+    def avoid(self, fixedchosenRow):
+        # turn 45 against wall
+        # strafe with wall vector
+        # break out when filtered view is clear
+
+        filtered_row = self.view_distance_filter(fixedchosenRow, self.view_distance)
+        # get vector 45 degrees from wall
+        if (filtered_row is None):
+            return
+        sum_vector = self.calculate_object_sum_vector(fixedchosenRow)
+        norm_sum_vector = self.normalize_vector(sum_vector)
+        if(norm_sum_vector is [0,0]):
+            return
+        vectorfromwall = self.vector_45_from_wall(norm_sum_vector)
+        # get angle from drone to wall vector
+        # angleInRad,angleInDegree = self.angle_from_drone_to_vector(vectorfromwall)
+
+        # TODO: how to pass yaw_mode parameter
+        x_Vel = norm_sum_vector[0]
+        y_Vel = norm_sum_vector[1]
+        z_Vel = 0
+        
+
+        # return angleInDegree, x_Vel, y_Vel, z_Vel   
+        return x_Vel, y_Vel, z_Vel  
+    
+    def run(self, point_cloud: list):
+        #choose the row nearest to z = 0 (relative to drone level)
+        chosenRowIndex = self.chooseRow(point_cloud)
+        #correct for gaps in data (if no wall is behind, lidar will omit any gaps)
+        fixedchosenRow = self.dataFixer(1, point_cloud[chosenRowIndex])
+        # filter lidar array to get only the points within a certain distance
+        filtered_row = self.view_distance_filter(fixedchosenRow, self.view_distance)
+        
+        # Flight mode switch
+        if (filtered_row != [] and self.mode == self.STATES["Clear"]):
+            self.mode = self.STATES["Obstacle"]
+        elif (filtered_row == [] and self.mode == self.STATES["Obstacle"]):
+            self.mode = self.STATES["Clear"]
+        
+        # execution of the current flight mode
+        if self.mode == "TOGOAL":
+            # turn to destination coordinates on the xy plane
+            x_Vel = 0
+            y_Vel = 0
+            z_Vel = 0
+            angleInDegree = 0
+        elif self.mode == "AVOID":
+            x_Vel, y_Vel, z_Vel = self.avoid(fixedchosenRow)
+        
+        next_point = [x_Vel, y_Vel, z_Vel]
+        # return angle in degrees, x_Vel, y_Vel, z_Vel
+        return next_point
