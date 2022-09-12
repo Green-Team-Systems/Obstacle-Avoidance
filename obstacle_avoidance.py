@@ -21,7 +21,7 @@ from multiprocessing import Process
 from datetime import datetime
 from multiprocessing.queues import Empty
 
-from utils.data_classes import PosVec3, MovementCommand, VelVec3
+from utils.data_classes import PosVec3, MovementCommand, VelVec3, OASystemStates
 from utils.killer_utils import GracefulKiller
 from airsim.types import LidarData, YawMode
 # TODO Create status library
@@ -72,6 +72,7 @@ class ObstacleAvoidance(Process):
         self.status = None
         self.last_command = None
         self.takeoff_completed = False
+        self.state = OASystemStates.GROUNDED
         # TODO Add an inter-process queue between mapping and self
         FORMAT = '%(asctime)s %(message)s'
         # logging.basicConfig(format=FORMAT,
@@ -123,6 +124,7 @@ class ObstacleAvoidance(Process):
                 message = self.path_planning_queue.get(block=False)
                 if message == "Takeoff Completed":
                     self.takeoff_completed = True
+                    self.state = OASystemStates.PATH_PLANNING
                 # TODO Handle takeoff failures
             except Exception:
                 pass
@@ -130,23 +132,32 @@ class ObstacleAvoidance(Process):
             while not killer.kill_now:
                 lidar_data = self.airsim_client.getLidarData() 
                 data = lidar_data.point_cloud
-                x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
-                if not z_vel == 0.0: #slope caclulation returns 0 value when no points are deteced or the z value is to low so if statment to make sure not to call that command if z = 0
-                    self.log.info(
-                            "{}|{}|vel_command|{}".format(
-                                datetime.utcnow(),
-                                self.drone_id,
-                                json.dumps([x_vel,z_vel])
+                # TODO Add state switching logic
+                if self.state == OASystemStates.PATH_PLANNING:
+                    # do something
+                    pass
+                elif self.state == OASystemStates.SLOPE:
+                    x_vel, z_vel = self.slopeCalculation(data, 10.0) # calls the slope calculation method
+                    if not z_vel == 0.0: #slope caclulation returns 0 value when no points are deteced or the z value is to low so if statment to make sure not to call that command if z = 0
+                        self.log.info(
+                                "{}|{}|vel_command|{}".format(
+                                    datetime.utcnow(),
+                                    self.drone_id,
+                                    json.dumps([x_vel,z_vel])
+                                    )
                                 )
-                            )
-                    command = MovementCommand(
-                        velocity=VelVec3(
-                            vx=x_vel,
-                            vz=-1 * z_vel # remeber that z is in ned corrdinate system so we have to inverse the speed of z velocity 
-                        ),
-                        move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
-                    )
-                    self.path_planning_queue.put(command)
+                        command = MovementCommand(
+                            velocity=VelVec3(
+                                vx=x_vel,
+                                vz=-1 * z_vel # remeber that z is in ned corrdinate system so we have to inverse the speed of z velocity 
+                            ),
+                            move_by="velocity" # creates a move by velocity command for the planner to use in deciding who controls the drone
+                        )
+                elif self.state == OASystemStates.CLEARANCE:
+                    # Run Harrison's Algo
+                    pass
+                
+                self.path_planning_queue.put(command)
                 time.sleep(0.01)
         except Exception as error:
             self.log.error(traceback.print_exc())
