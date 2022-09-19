@@ -218,7 +218,7 @@ def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vert
         if dist < min: 
             min = dist
             way_point = x  
-    # way_point = np.array([20,0,0])
+    way_point = np.array([20,0,0])
     return way_point
 
 def cuboid_data(center, size):
@@ -238,7 +238,6 @@ def cuboid_data(center, size):
 
 
     """
-
 
     # suppose axis direction: x: to left; y: to inside; z: to upper
     # get the (left, outside, bottom) point
@@ -277,7 +276,6 @@ def run_plot(way_points, obstacles):
         
     #     plot_sphere(obstacle_p, obstacle[3], "r")
     combine_obstacles(obstacles)
-    
     center = [43, 0, 7.5]
     length = 20 * 2
     width = 20 * 2
@@ -289,7 +287,6 @@ def run_plot(way_points, obstacles):
             obstacles.remove(0)
     except ValueError:
         pass
-    print(obstacles)
     while x < z:
         wp_1.X = way_points[x - 1][0]
         wp_1.Y = way_points[x - 1][1]
@@ -307,8 +304,8 @@ def run_plot(way_points, obstacles):
             if collision == True and already_intersect == False:
                 cube_point = closest(way_points[x - 1], obstacle_pos, radius)
                 theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2])
-                cube_points = rotate_cube(obstacle_pos, radius, 90- theta)
-                plot_cube(obstacle_pos, radius, 90- theta)
+                cube_points = rotate_cube(obstacle_pos, radius, theta)
+                plot_cube(obstacle_pos, radius, theta)
                 point = get_new_waypoint(wp_1, wp_2, obstacle_pos, cube_points, radius)
                 new_wp.X = point[0]
                 new_wp.Y = point[1]
@@ -327,7 +324,3 @@ def run_plot(way_points, obstacles):
             plot_sphere(obstacle_pos, radius, "lightblue")
         x+=1
     plt.show()
-
-# obstacles = [[18.66334113434288, -0.5208809257439557, 0.9900976911906672, 14.546377905780302]]
-# points = [[-10,0,1],[70, 0, 1]]
-# run_plot(points, obstacles)
