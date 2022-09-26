@@ -26,7 +26,7 @@ ax = fig.add_subplot(111)
 r1 = patches.Rectangle(rect_origin, diameter, diameter, color="blue", alpha=0.50)
 r2 = patches.Rectangle(rect_origin, diameter, diameter, color="red",  alpha=0.50)
 
-t2 = mpl.transforms.Affine2D().rotate_deg(theta) ax.transData
+t2 = mpl.transforms.Affine2D().rotate_deg(theta) + ax.transData
 r2.set_transform(t2)
 
 ax.add_patch(r1)
