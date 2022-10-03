@@ -312,11 +312,48 @@ class PathPlanning(Process):
         )
 
     def calculate_velocities(self, target_pos, startTime):
+
         x_vel, y_vel, z_vel = 0
-        
-        """This is where you will start to write the code for the PID.
-           No need to worry about the rest of code should all work just make sure
-           that you set x_vel, y_vel, and z_vel to the velocities calculated."""
+
+        kP = 0.06
+        kI = 0.008
+        kD = 0.3
+
+        #Getting error for all coordinates
+        x_err = target_pos.X - current_pos.X
+        y_err = target_pos.Y - current_pos.Y
+        z_err = target_pos.Z - current_pos.Z
+
+        #Time functions for dt
+        now = datetime.utcnow()
+        slew = (now - startTime).total_seconds()
+        dt = (now - self.previous_time).total_seconds()
+        self.previous_time = now
+
+        #Derivation for kD
+        x_d = (x_error - self.errors["X"]) / dt
+        y_d = (y_error - self.errors["Y"]) / dt
+        z_d = (y_error - self.errors["Y"]) / dt
+
+        #Integration for kI
+        x_int = (self.integral_error["X"] + x_err) * dt
+        y_int = (self.integral_error["Y"] + y_err) * dt
+        z_int = (self.integral_error["Z"] + z_err) * dt
+
+        #Getting velocities for all coordinates
+        x_vel = (((x_err) * (kP)) + ((x_d) * (kD)) + ((x_int) * (kI)))
+        y_vel = (((y_err) * (kP)) + ((y_d) * (kD)) + ((y_int) * (kI)))
+        z_vel = (((z_err) * (kP)) + ((z_d) * (kD)) + ((z_int) * (kI)))
+
+        x_vel = self.apply_velocity_constraints(x_vel)
+        y_vel = self.apply_velocity_constraints(y_vel)
+        z_vel = self.apply_velocity_constraints(z_vel, z_val=True)
+
+        self.errors = {
+            "X": x_error,
+            "Y": y_error,
+            "Z": z_error
+        }
 
         return x_vel, y_vel, z_vel
 
@@ -395,7 +432,7 @@ class PathPlanning(Process):
             self.last_position.Z = command.position.Z
             # heading = self.last_command.heading
             """
-            
+
             self.log.info("{}|{}|velocities|{}".format(# All agents start from their
                                     datetime.utcnow(),
                                     self.drone_id,
