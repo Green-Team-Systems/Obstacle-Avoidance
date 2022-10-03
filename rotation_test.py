@@ -19,7 +19,7 @@ rect_origin = np.array([-10,10])
 rect_center = np.array([-10 + (diameter / 2), 10 + (diameter / 2)])
 
 start_point = [-20, 20]      #x values for vector 1
-end_point = [50, -40]     #y values for vector 1
+end_point = [50, 0]     #y values for vector 1
 edge_point = [-10, 10]     #y values for vector 2
 vector_1 = [end_point[0] - start_point[0], end_point[1] - start_point[1]]
 vector_2 = [edge_point[0] - start_point[0], edge_point[1] - start_point[1]]
@@ -31,19 +31,19 @@ e = rect_center[1]
 a_square = a * a
 e_square = e * e
 
-if(vector_1[0] == 0):
+if(vector_1[0] == 0):       #Case 1: X value of vector is the same as the starting point
     x_point = start_point[0]
-elif(vector_1[1] == 0):
+elif(vector_1[1] == 0):     #Case 2: Y value of vector is the same as the starting point
     y_point = start_point[1]
     y_point_square = y_point * y_point
     x_val = m.sqrt(radius_square - y_point_square + (2 * y_point * e) - e_square)
     x_val_1 = x_val + a
     x_val_2 = -x_val + a
-    if(m.fabs(x_val_1 - start_point[0]) > m.fabs(x_val_2 - start_point[0])):
+    if(m.fabs(x_val_1 - start_point[0]) > m.fabs(x_val_2 - start_point[0])):    #Chooses the closest x_value
         x_point = x_val_2
     else:
         x_point = x_val_1
-else:
+else:                       #Case 3: Standard case where the x or y value are not the same as the starting point
     slope = vector_1[1] / vector_1[0]
     slope_square = slope * slope
     c = start_point[1] - (slope  * start_point[0])
@@ -53,7 +53,7 @@ else:
     x_val_2 = a - (slope * c) + (slope *e) - m.sqrt(x_val)
     x_val_1 = x_val_1 / (1 + slope_square)
     x_val_2 = x_val_2 / (1 + slope_square)
-    if(m.fabs(x_val_1 - start_point[0]) > m.fabs(x_val_2 - start_point[0])):
+    if(m.fabs(x_val_1 - start_point[0]) > m.fabs(x_val_2 - start_point[0])):    #Chooses the closest x value
         x_point = x_val_2
     else:
         x_point = x_val_1
