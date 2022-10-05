@@ -40,15 +40,57 @@ def closest(wp, point: PosVec3, radius):
             i = x  
     return i
 
-def rotation_angle(cube_point, wp_1, wp_2):
-    wp_1 = np.array(wp_1)
-    wp_2 = np.array(wp_2)
-    cube_point = np.array(cube_point)
-    vector_1 = wp_2 - wp_1
-    vector_2 = cube_point - wp_1
-    theta = np.around(np.dot(vector_1, vector_2) / (magnitude(vector_1) *  magnitude(vector_2)), 5)
+def rotation_angle(cube_point, wp_1, wp_2, radius):
+    start_point = np.array(wp_1)
+    end_point = np.array(wp_2)
+    cube_center = np.array(cube_point)
+    #edge_point = [cube_center[0] - radius, cube_center[1] - radius]
+    vector_1 = end_point - start_point
+    #vector_2 = cube_center - edge_point
+    print(start_point, "   ", end_point, "     ", cube_center)
+    print(radius)
+    radius = radius / m.sqrt(2)
+    circle_radius = radius * m.sqrt(2)
+    radius_square = circle_radius * circle_radius
+    a = cube_center[0]
+    e = cube_center[1]
+    a_square = a * a
+    e_square = e * e
+    if(vector_1[0] == 0):       #Case 1: X value of vector is the same as the starting point
+        x_point = start_point[0]
+    elif(vector_1[1] == 0):     #Case 2: Y value of vector is the same as the starting point
+        print("test")
+        y_point = start_point[1]
+        y_point_square = y_point * y_point
+        print(y_point)
+        x_val = m.sqrt(radius_square - y_point_square + (2 * y_point * e) - e_square)
+        x_val_1 = x_val + a
+        x_val_2 = -x_val + a
+        if(m.fabs(x_val_1 - start_point[0]) > m.fabs(x_val_2 - start_point[0])):    #Chooses the closest x_value
+            x_point = x_val_2
+        else:
+            x_point = x_val_1
+    else:                       #Case 3: Standard case where the x or y value are not the same as the starting point
+        slope = vector_1[1] / vector_1[0]
+        slope_square = slope * slope
+        c = start_point[1] - (slope  * start_point[0])
+        c_square = c * c
+        x_val = (radius_square) +(slope_square * radius_square) + (2 * a * slope * e) + (2 * c * e) - (a_square * slope_square) - (2 * a * slope * c) - c_square - e_square
+        x_val_1 = a - (slope * c) + (slope *e) + m.sqrt(x_val)
+        x_val_2 = a - (slope * c) + (slope *e) - m.sqrt(x_val)
+        x_val_1 = x_val_1 / (1 + slope_square)
+        x_val_2 = x_val_2 / (1 + slope_square)
+        if(m.fabs(x_val_1 - start_point[0]) > m.fabs(x_val_2 - start_point[0])):    #Chooses the closest x value
+            x_point = x_val_2
+        else:
+            x_point = x_val_1
+
+    theta = ((-x_point + cube_center[0]) / radius)
+    theta = (theta * theta) - 1
+    theta = np.arcsin(-theta) / 2
+    theta = m.degrees(theta)
+    print("Theta value ")
     print(theta)
-    theta = m.degrees(np.arccos(theta))
     
     return theta
 
@@ -218,7 +260,7 @@ def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vert
         if dist < min: 
             min = dist
             way_point = x  
-    way_point = np.array([20,0,0])
+    #way_point = np.array([20,0,0])
     return way_point
 
 def cuboid_data(center, size):
@@ -303,7 +345,7 @@ def run_plot(way_points, obstacles):
             collision = collision_possability(wp_1, wp_2, obstacle_pos, radius)
             if collision == True and already_intersect == False:
                 cube_point = closest(way_points[x - 1], obstacle_pos, radius)
-                theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2])
+                theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2], radius)
                 cube_points = rotate_cube(obstacle_pos, radius, theta)
                 plot_cube(obstacle_pos, radius, theta)
                 point = get_new_waypoint(wp_1, wp_2, obstacle_pos, cube_points, radius)
