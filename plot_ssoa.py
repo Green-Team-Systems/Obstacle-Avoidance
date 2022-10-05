@@ -49,7 +49,7 @@ def rotation_angle(cube_point, wp_1, wp_2, radius):
     #vector_2 = cube_center - edge_point
     print(start_point, "   ", end_point, "     ", cube_center)
     print(radius)
-    radius = radius / m.sqrt(2)
+    #radius = radius / m.sqrt(2)
     circle_radius = radius * m.sqrt(2)
     radius_square = circle_radius * circle_radius
     a = cube_center[0]
