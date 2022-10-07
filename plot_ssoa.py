@@ -47,9 +47,6 @@ def rotation_angle(cube_point, wp_1, wp_2, radius):
     #edge_point = [cube_center[0] - radius, cube_center[1] - radius]
     vector_1 = end_point - start_point
     #vector_2 = cube_center - edge_point
-    print(start_point, "   ", end_point, "     ", cube_center)
-    print(radius)
-    #radius = radius / m.sqrt(2)
     circle_radius = radius * m.sqrt(2)
     radius_square = circle_radius * circle_radius
     a = cube_center[0]
@@ -345,7 +342,7 @@ def run_plot(way_points, obstacles):
             collision = collision_possability(wp_1, wp_2, obstacle_pos, radius)
             if collision == True and already_intersect == False:
                 cube_point = closest(way_points[x - 1], obstacle_pos, radius)
-                theta = rotation_angle(cube_point[0:2], way_points[x - 1][0:2], way_points[x][0:2], radius)
+                theta = rotation_angle(obstacles[y][0:2], way_points[x - 1][0:2], way_points[x][0:2], radius)
                 cube_points = rotate_cube(obstacle_pos, radius, theta)
                 plot_cube(obstacle_pos, radius, theta)
                 point = get_new_waypoint(wp_1, wp_2, obstacle_pos, cube_points, radius)
