@@ -135,7 +135,6 @@ class PoseAirSimConnector(ConnectorBase):
         return True
     
     def roll_pitch_yaw(self, orientation: Quaternionr):
-        print(orientation)
         pitch, roll, yaw  = airsim.to_eularian_angles(orientation)
 
         return [roll, pitch, yaw]
@@ -159,7 +158,6 @@ class PoseAirSimConnector(ConnectorBase):
         self.drone_position = self.global_position.toPythonList()
         self.drone_gyro = vector_to_list(state_data.kinematics_estimated.angular_velocity)
         self.drone_attitude = self.roll_pitch_yaw(state_data.kinematics_estimated.orientation)
-        print("Drone Attitude: {}".format(self.drone_attitude))
 
     def shutdown(self) -> None:
          self.airsim_client.armDisarm(False, vehicle_name=self.drone_id)

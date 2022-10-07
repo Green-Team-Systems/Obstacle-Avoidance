@@ -132,6 +132,8 @@ class Planner():
             heading = round(arctan2(self.current_goal.Y, self.current_goal.X), PRECISION)
             last_point = self.current_position
 
+            print("Starting point for trajectory: {}".format(last_point))
+
             for i in range(1, numb_segments + 1):
                 if (i == numb_segments):
                     Y=round(self.current_goal.Y, PRECISION)
@@ -249,6 +251,7 @@ class Planner():
         pos_diff = ned_position_difference_x_y_only(
             self.current_position, self.trajectory[0]["pos"]
         )
+
         if pos_diff <= self.completed_radius:
             self.log.info("{}|{}|planning|{}".format(
                             datetime.utcnow(),
