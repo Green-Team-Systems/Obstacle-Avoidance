@@ -1,3 +1,5 @@
+from sqlite3 import Date
+from tracemalloc import start
 from matplotlib import projections
 import setup_path 
 import airsim
@@ -15,11 +17,17 @@ import json
 
 import matplotlib.pyplot as plt
 import numpy as np
+import math as m
 
 from itertools import groupby
+from datetime import datetime
 
+from airsim.types import YawMode
 from plot_ssoa import run_plot
+from multiprocessing import Queue
+from utils.data_classes import PosVec3
 from utils.position_utils import position_to_list
+from path_planning import *
 
 # OA algorithm that generates new way points based on safety sphere around obstacles
 
@@ -27,7 +35,14 @@ class ClearPathObstacleAvoidance:
     
     destination = (-100, 50, 0)
     collisiondist = 4
+    drone_id = "Drone1"
+    path_planning_queue = Queue(20)
     vehicle_name,lidar_names = 'Drone1',['LidarSensor1']
+    pid = PathPlanning(
+        path_planning_queue,
+        drone_id,
+        simulation=True
+    )
     
     
 
@@ -311,24 +326,49 @@ class ClearPathObstacleAvoidance:
 
         self.client.armDisarm(True)
 
-        self.takeoff()
-        
+        self.takeoff()        
         airsim.wait_key('Press any key to lift drone')
         starting_pos = position_to_list(state.kinematics_estimated.position)
-        print(starting_pos)
         #self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
         waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[70, starting_pos.Y, starting_pos.Z]]
         # waypoint = [[5,0,0], [7,0,0]]
         #obstacle dimenesions are 40x40x10
-        state = self.client.getMultirotorState()
+        new_command = 0
+        new_waypoint = PosVec3()
         #position = position_to_list(state.kinematics_estimated.position, starting_position=starting_pos, frame="global")
         #turn lidar data into list
-        overall_point_list = self.scan()
-        for x in overall_point_list:
-            x.append(1)
-        run_plot(waypoint, overall_point_list)
-    
+        startTime = datetime.utcnow()
+        current_pos = position_to_list(state.kinematics_estimated.position)
+        while current_pos.X < 70:
+            # overall_point_list = self.scan()
+            # for x in overall_point_list:
+            #     x.append(1)
+            # #run_plot(waypoint, overall_point_list)
+            # print(waypoint)
+            current_pos = position_to_list(state.kinematics_estimated.position)
+            new_waypoint.X = -18.103442767399468
+            new_waypoint.Y = 19.99568419647218
+            new_waypoint.Z = -15.529914215053418
+            #if len(waypoint) != (2 + new_command):
+            x_Vel, y_Vel, z_Vel = self.pid.calculate_velocities(
+            new_waypoint,
+            current_pos, 
+            startTime
+            )
+            heading = np.arctan2(new_waypoint.Y,new_waypoint.X)
+            heading = m.degrees(heading)
+            self.client.moveByVelocityAsync(
+            x_Vel,
+            y_Vel,
+            z_Vel,
+            m.inf,
+            yaw_mode=YawMode(False,heading)
+            )
+            startTime = datetime.utcnow()
+            #print(current_pos)
+            time.sleep(0.01)
+        
         
         
         

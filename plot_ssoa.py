@@ -14,11 +14,6 @@ from itertools import product, combinations
 import numpy
 from utils.data_classes import PosVec3, MovementCommand, VelVec3
 
-ax = plt.axes(projection = '3d')
-ax.set_xlim([-50,50])
-ax.set_ylim([-50,50])
-ax.set_zlim([-50,50])
-
 def pow(a):
     return a * a
 
@@ -91,7 +86,7 @@ def rotation_angle(cube_point, wp_1, wp_2, radius):
     
     return theta
 
-def rotate_cube(point: PosVec3, radius, theta):
+def rotate_cube(ax, point: PosVec3, radius, theta):
     x = [point.X - radius, point.X + radius]
     y = [point.Y - radius, point.Y + radius]
     z = [point.Z - radius, point.Z + radius]
@@ -118,10 +113,10 @@ def rotate_z(theta, pos: PosVec3):
                         [sin_angle, cos_angle, (-pos.X * sin_angle - pos.Y * cos_angle + pos.Y)],
                         [0, 0, 1]])
 
-def plot_new_point(point: PosVec3):
+def plot_new_point(ax, point: PosVec3):
     ax.scatter(point.X, point.Y, point.Z, color = 'y', marker = '*', s=100)
 
-def plot_sphere(sphere_pos: PosVec3, radius: float, col:str):
+def plot_sphere(ax, sphere_pos: PosVec3, radius: float, col:str):
     u, v = np.mgrid[0:2*np.pi:20j, 0:np.pi:10j]
     x = (radius) * np.cos(u)*np.sin(v) + sphere_pos.X
     y = (radius) * np.sin(u)*np.sin(v) + sphere_pos.Y
@@ -129,7 +124,7 @@ def plot_sphere(sphere_pos: PosVec3, radius: float, col:str):
     
     ax.plot_wireframe(x,y,z, color=col)
 
-def plot_cube(point: PosVec3, radius, angle):
+def plot_cube(ax, point: PosVec3, radius, angle):
     theta = np.radians(angle)
     d = [-radius, radius]
     x = [point.X - radius, point.X + radius]
@@ -145,7 +140,7 @@ def plot_cube(point: PosVec3, radius, angle):
                         e[2] + point.Z]
             ax.plot3D(*zip(s_rotated,e_rotated), color="g")
 
-def x_y_edge(x_range, y_range, z_range):
+def x_y_edge(ax, x_range, y_range, z_range):
     xx, yy = np.meshgrid(x_range, y_range)
 
     for value in [0, 1]:
@@ -153,7 +148,7 @@ def x_y_edge(x_range, y_range, z_range):
         ax.plot_surface(xx, yy, z_range[value], color="r", alpha=0.2)
 
 
-def y_z_edge(x_range, y_range, z_range):
+def y_z_edge(ax, x_range, y_range, z_range):
     yy, zz = np.meshgrid(y_range, z_range)
 
     for value in [0, 1]:
@@ -174,10 +169,10 @@ def rect_prism(x_range, y_range, z_range):
     y_z_edge(x_range, y_range, z_range)
     x_z_edge(x_range, y_range, z_range)
 
-def plot_line(pos_1: PosVec3, pos_2: PosVec3, mark):
+def plot_line(ax, pos_1: PosVec3, pos_2: PosVec3, mark):
    ax.plot([pos_1.X, pos_2.X], [pos_1.Y, pos_2.Y], [pos_1.Z, pos_2.Z], color = mark)
 
-def plot_line_new(pos_1: PosVec3, pos_2: PosVec3, new_pos: PosVec3):
+def plot_line_new(ax, pos_1: PosVec3, pos_2: PosVec3, new_pos: PosVec3):
    ax.plot([new_pos.X, pos_2.X], [new_pos.Y, pos_2.Y], [new_pos.Z, pos_2.Z], color = 'b')
    ax.plot([pos_1.X, new_pos.X], [pos_1.Y, new_pos.Y], [pos_1.Z, new_pos.Z], color = 'b')
 
@@ -219,7 +214,7 @@ def combine_obstacles(obstacles: list):
             del obstacles[x]
             obstacles.insert(x, sphere) 
 
-def collision_possability(wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
+def collision_possability(ax, wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
 
     a = pow(wp_2.X  - wp_1.X) + pow(wp_2.Y  - wp_1.Y) + pow(wp_2.Z  - wp_1.Z)
     b = 2 * ((wp_2.X  - wp_1.X) * (wp_1.X  - obstacle_pos.X) + (wp_2.Y  - wp_1.Y) * (wp_1.Y  - obstacle_pos.Y) + (wp_2.Z  - wp_1.Z) * (wp_1.Z  - obstacle_pos.Z))
@@ -234,7 +229,7 @@ def collision_possability(wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, r
     else:
         return True
 
-def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vertices: list, radius_saftey: float):
+def get_new_waypoint(ax, wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vertices: list, radius_saftey: float):
     cube_pos = PosVec3
     potential_wp = []
     min = m.inf
@@ -242,8 +237,8 @@ def get_new_waypoint(wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vert
         cube_pos.X = x[0]
         cube_pos.Y = x[1]
         cube_pos.Z = x[2]
-        collision_1 = collision_possability(wp1, cube_pos, obstacle_pos, radius_saftey)
-        collision_2 = collision_possability(cube_pos, wp2, obstacle_pos, radius_saftey)
+        collision_1 = collision_possability(ax, wp1, cube_pos, obstacle_pos, radius_saftey)
+        collision_2 = collision_possability(ax, cube_pos, wp2, obstacle_pos, radius_saftey)
         if collision_1 == False and collision_2 == False:
             potential_wp.append(x)
     potential_wp = np.array(potential_wp)
@@ -277,7 +272,7 @@ def cuboid_data(center, size):
 
 
     """
-
+    
     # suppose axis direction: x: to left; y: to inside; z: to upper
     # get the (left, outside, bottom) point
     o = [a - b / 2 for a, b in zip(center, size)]
@@ -303,6 +298,10 @@ def run_plot(way_points, obstacles):
     wp_2 = PosVec3()
     new_wp = PosVec3()
     obstacle_pos = PosVec3()
+    ax = plt.axes(projection = '3d')
+    ax.set_xlim([-50,50])
+    ax.set_ylim([-50,50])
+    ax.set_zlim([-50,50])
     # obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
     # obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
     x = 1
@@ -324,7 +323,7 @@ def run_plot(way_points, obstacles):
     try:
         while True:
             obstacles.remove(0)
-    except ValueError:
+    except ValueError:  
         pass
     while x < z:
         wp_1.X = way_points[x - 1][0]
@@ -339,27 +338,28 @@ def run_plot(way_points, obstacles):
             obstacle_pos.Y = obstacles[y][1]
             obstacle_pos.Z = obstacles[y][2]
             radius = obstacles[y][3]
-            collision = collision_possability(wp_1, wp_2, obstacle_pos, radius)
+            collision = collision_possability(ax, wp_1, wp_2, obstacle_pos, radius)
             if collision == True and already_intersect == False:
                 cube_point = closest(way_points[x - 1], obstacle_pos, radius)
                 theta = rotation_angle(obstacles[y][0:2], way_points[x - 1][0:2], way_points[x][0:2], radius)
-                cube_points = rotate_cube(obstacle_pos, radius, theta)
-                plot_cube(obstacle_pos, radius, theta)
-                point = get_new_waypoint(wp_1, wp_2, obstacle_pos, cube_points, radius)
+                cube_points = rotate_cube(ax, obstacle_pos, radius, theta)
+                plot_cube(ax, obstacle_pos, radius, theta)
+                point = get_new_waypoint(ax, wp_1, wp_2, obstacle_pos, cube_points, radius)
                 new_wp.X = point[0]
                 new_wp.Y = point[1]
                 new_wp.Z = point[2]
-                plot_line(wp_1, wp_2, 'r')
-                plot_new_point(new_wp)
-                plot_line_new(wp_1, wp_2, new_wp)
+                plot_line(ax, wp_1, wp_2, 'r')
+                plot_new_point(ax, new_wp)
+                plot_line_new(ax, wp_1, wp_2, new_wp)
                 way_points.insert(x, point.tolist())
                 z += 1
                 already_intersect = True
             elif already_intersect == True:
-                plot_line(wp_1, wp_2, 'r')
+                plot_line(ax, wp_1, wp_2, 'r')
             else:
-                plot_line(wp_1, wp_2, 'b')
+                plot_line(ax, wp_1, wp_2, 'b')
             
-            plot_sphere(obstacle_pos, radius, "lightblue")
+            plot_sphere(ax, obstacle_pos, radius, "lightblue")
         x+=1
     plt.show()
+    plt.close()
