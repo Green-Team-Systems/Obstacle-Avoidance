@@ -251,7 +251,7 @@ class PathPlanning(Process):
                             self.last_command = copy.deepcopy(command)
                             self.planner.current_goal = command.position
                             self.last_command = command
-                            self.planner.current_position = self.airsim_connector.current_position
+                            self.planner.current_position = self.airsim_connector.global_position
                             self.planner.build_trajectory()
                             if len(self.planner.trajectory) > 0:
                                 position = PosVec3(
@@ -282,6 +282,7 @@ class PathPlanning(Process):
                 except Empty:
                     try:
                         if len(self.planner.trajectory) > 0:
+                            self.planner.check_trajectory_progress()
                             position = self.planner.trajectory[0]["pos"]
                             new_command = MovementCommand(position=position,
                                                           heading=self.planner.trajectory[0]["heading"],
