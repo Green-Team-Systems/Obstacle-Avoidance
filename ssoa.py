@@ -322,12 +322,11 @@ class ClearPathObstacleAvoidance:
     
     def execute(self):
         print("arming the drone...")
-        state = self.client.getMultirotorState()
-
         self.client.armDisarm(True)
 
         self.takeoff()        
         airsim.wait_key('Press any key to lift drone')
+        state = self.client.getMultirotorState()
         starting_pos = position_to_list(state.kinematics_estimated.position)
         #self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
@@ -341,23 +340,24 @@ class ClearPathObstacleAvoidance:
         startTime = datetime.utcnow()
         current_pos = position_to_list(state.kinematics_estimated.position)
         while current_pos.X < 70:
-            # overall_point_list = self.scan()
-            # for x in overall_point_list:
-            #     x.append(1)
-            # #run_plot(waypoint, overall_point_list)
-            # print(waypoint)
+            overall_point_list = self.scan()
+            for x in overall_point_list:
+                x.append(1)
+            run_plot(waypoint, overall_point_list)
+            print(waypoint)
+            state = self.client.getMultirotorState()
             current_pos = position_to_list(state.kinematics_estimated.position)
-            new_waypoint.X = -18.103442767399468
-            new_waypoint.Y = 19.99568419647218
-            new_waypoint.Z = -15.529914215053418
-            #if len(waypoint) != (2 + new_command):
-            x_Vel, y_Vel, z_Vel = self.pid.calculate_velocities(
-            new_waypoint,
-            current_pos, 
-            startTime
-            )
-            heading = np.arctan2(new_waypoint.Y,new_waypoint.X)
-            heading = m.degrees(heading)
+            new_waypoint.X = waypoint[1][0]
+            new_waypoint.Y = -waypoint[1][1]
+            new_waypoint.Z = -waypoint[1][2]
+            if len(waypoint) != (2 + new_command):
+                x_Vel, y_Vel, z_Vel = self.pid.calculate_velocities(
+                new_waypoint,
+                current_pos, 
+                startTime
+                )
+                heading = np.arctan2(new_waypoint.Y,new_waypoint.X)
+                heading = m.degrees(heading)
             self.client.moveByVelocityAsync(
             x_Vel,
             y_Vel,
@@ -366,8 +366,9 @@ class ClearPathObstacleAvoidance:
             yaw_mode=YawMode(False,heading)
             )
             startTime = datetime.utcnow()
-            #print(current_pos)
-            time.sleep(0.01)
+            print(current_pos)
+            time.sleep(0.1)
+            self.client.simPause(True)
         
         
         
