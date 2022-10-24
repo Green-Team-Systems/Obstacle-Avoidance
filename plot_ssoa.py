@@ -156,7 +156,7 @@ def y_z_edge(ax, x_range, y_range, z_range):
         ax.plot_surface(x_range[value], yy, zz, color="r", alpha=0.2)
 
 
-def x_z_edge(x_range, y_range, z_range):
+def x_z_edge(ax, x_range, y_range, z_range):
     xx, zz = np.meshgrid(x_range, z_range)
 
     for value in [0, 1]:
@@ -164,10 +164,10 @@ def x_z_edge(x_range, y_range, z_range):
         ax.plot_surface(xx, y_range[value], zz, color="r", alpha=0.2)
 
 
-def rect_prism(x_range, y_range, z_range):
-    x_y_edge(x_range, y_range, z_range)
-    y_z_edge(x_range, y_range, z_range)
-    x_z_edge(x_range, y_range, z_range)
+def rect_prism(x_range, y_range, z_range, ax):
+    x_y_edge(ax, x_range, y_range, z_range)
+    y_z_edge(ax, x_range, y_range, z_range)
+    x_z_edge(ax, x_range, y_range, z_range)
 
 def plot_line(ax, pos_1: PosVec3, pos_2: PosVec3, mark):
    ax.plot([pos_1.X, pos_2.X], [pos_1.Y, pos_2.Y], [pos_1.Z, pos_2.Z], color = mark)
@@ -191,11 +191,12 @@ def get_perp(wp1: PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: f
     return [x1,y1, x2, y2]
 
 def combine_obstacles(obstacles: list):
-    for x in range(1, len(obstacles)):
+    x = 0
+    while x < len(obstacles) - 1:
         pos_1 = np.array(obstacles[x][0:3])
         radius_1 = obstacles[x][3]
-        pos_2 = np.array(obstacles[x - 1][0:3])
-        radius_2 = obstacles[x - 1][3]
+        pos_2 = np.array(obstacles[x + 1][0:3])
+        radius_2 = obstacles[x + 1][3]
         dist = np.linalg.norm(pos_2-pos_1)
         radius = 0
         if dist + radius_1 < radius_2:
@@ -210,9 +211,12 @@ def combine_obstacles(obstacles: list):
         if radius != 0:
             sphere = center.tolist()
             sphere.append(radius)
-            obstacles[x - 1] = 0
+            del obstacles[x + 1]
             del obstacles[x]
-            obstacles.insert(x, sphere) 
+            print(x)
+            obstacles.insert(x - 1, sphere)
+        else: 
+            x += 1
 
 def collision_possability(ax, wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
 
@@ -293,7 +297,7 @@ def cuboid_data(center, size):
 
     return x, y, z
 
-def run_plot(way_points, obstacles):
+def run_plot(way_points, obstacles, show_plot):
     wp_1 = PosVec3()
     wp_2 = PosVec3()
     new_wp = PosVec3()
@@ -320,6 +324,7 @@ def run_plot(way_points, obstacles):
     height = 7.5 * 2
     X, Y, Z = cuboid_data(center, (length, width, height))
     ax.plot_surface(np.array(X), np.array(Y), np.array(Z), color='b', rstride=1, cstride=1, alpha=0.1)
+    print(obstacles)
     try:
         while True:
             obstacles.remove(0)
@@ -361,5 +366,6 @@ def run_plot(way_points, obstacles):
             
             plot_sphere(ax, obstacle_pos, radius, "lightblue")
         x+=1
-    plt.show()
-    plt.close()
+    if(show_plot == True):
+        plt.show()
+        plt.close()

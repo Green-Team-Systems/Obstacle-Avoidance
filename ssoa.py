@@ -330,7 +330,7 @@ class ClearPathObstacleAvoidance:
         starting_pos = position_to_list(state.kinematics_estimated.position)
         #self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
-        waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[70, starting_pos.Y, starting_pos.Z]]
+        waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[70, 0, 5]]
         # waypoint = [[5,0,0], [7,0,0]]
         #obstacle dimenesions are 40x40x10
         new_command = 0
@@ -339,25 +339,36 @@ class ClearPathObstacleAvoidance:
         #turn lidar data into list
         startTime = datetime.utcnow()
         current_pos = position_to_list(state.kinematics_estimated.position)
+        dist_treshold = 2.0
+        i = 0
+        previous_waypoint_len = len(waypoint)
         while current_pos.X < 70:
             overall_point_list = self.scan()
             for x in overall_point_list:
                 x.append(1)
-            run_plot(waypoint, overall_point_list)
+            run_plot(waypoint, overall_point_list, False)
             print(waypoint)
+            if(len(waypoint) != previous_waypoint_len):
+                self.client.simPause(True)
+                run_plot(waypoint, overall_point_list, True)
+                self.client.simPause(False)
             state = self.client.getMultirotorState()
             current_pos = position_to_list(state.kinematics_estimated.position)
-            new_waypoint.X = waypoint[1][0]
-            new_waypoint.Y = -waypoint[1][1]
-            new_waypoint.Z = -waypoint[1][2]
-            if len(waypoint) != (2 + new_command):
-                x_Vel, y_Vel, z_Vel = self.pid.calculate_velocities(
-                new_waypoint,
-                current_pos, 
-                startTime
-                )
-                heading = np.arctan2(new_waypoint.Y,new_waypoint.X)
-                heading = m.degrees(heading)
+            dist_to_target = ned_position_difference(current_pos, new_waypoint)
+            if dist_to_target < dist_treshold:
+                i = i + 1
+            print(i)
+            new_waypoint.X = waypoint[i][0]
+            new_waypoint.Y = -waypoint[i][1]
+            new_waypoint.Z = -waypoint[i][2]
+            print(f'Way point : {new_waypoint}')
+            x_Vel, y_Vel, z_Vel = self.pid.calculate_velocities(
+            new_waypoint,
+            current_pos, 
+            startTime
+            )
+            heading = np.arctan2(new_waypoint.Y,new_waypoint.X)
+            heading = m.degrees(heading)
             self.client.moveByVelocityAsync(
             x_Vel,
             y_Vel,
@@ -366,10 +377,8 @@ class ClearPathObstacleAvoidance:
             yaw_mode=YawMode(False,heading)
             )
             startTime = datetime.utcnow()
+            previous_waypoint_len = len(waypoint)
             print(current_pos)
-            time.sleep(0.1)
-            self.client.simPause(True)
-        
         
         
         
