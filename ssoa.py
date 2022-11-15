@@ -319,7 +319,6 @@ class ClearPathObstacleAvoidance:
         
         return vec
     
-    
     def execute(self):
         print("arming the drone...")
         self.client.armDisarm(True)
@@ -327,6 +326,8 @@ class ClearPathObstacleAvoidance:
         self.takeoff()        
         airsim.wait_key('Press any key to lift drone')
         state = self.client.getMultirotorState()
+                
+        
         starting_pos = position_to_list(state.kinematics_estimated.position)
         #self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
@@ -380,20 +381,10 @@ class ClearPathObstacleAvoidance:
             previous_waypoint_len = len(waypoint)
             print(current_pos)
         
-        
-        
-        
 if __name__ == "__main__":
-    print('Main accessed')
-    args = sys.argv
-    args.pop(0)
-
-    arg_parser = argparse.ArgumentParser("Lidar.py makes drone fly and gets Lidar data")
-
-    arg_parser.add_argument('-save-to-disk', type=bool, help="save Lidar data to disk", default=False)
     
-  
-    args = arg_parser.parse_args(args) 
+    print('Main accessed')
+
     ssoa = ClearPathObstacleAvoidance()
     
     try:

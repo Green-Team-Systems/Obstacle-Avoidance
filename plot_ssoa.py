@@ -226,8 +226,8 @@ def collision_possability(ax, wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec
     c = c - 2 * (wp_1.X * obstacle_pos.X + wp_1.Y * obstacle_pos.Y + wp_1.Z * obstacle_pos.Z) - pow(radius_saftey)
 
     intersect = pow(b) - (4 * a * c)
-    t1 = (-b - m.sqrt(m.fabs(intersect))) / (2.0 * a);
-    t2 = (-b + m.sqrt(m.fabs(intersect))) / (2.0 * a);
+    t1 = (-b - m.sqrt(m.fabs(intersect))) / (2.0 * a)
+    t2 = (-b + m.sqrt(m.fabs(intersect))) / (2.0 * a)
     if intersect < 0 or t1 > 1 or t1 < 0 or t2 > 1 or t2 < 0:
         return False
     else:
@@ -298,15 +298,25 @@ def cuboid_data(center, size):
     return x, y, z
 
 def run_plot(way_points, obstacles, show_plot):
+    ax = plt.figure().add_subplot(projection='3d')
+    plt.show()
+
+def rund_plot(way_points, obstacles, show_plot):
     wp_1 = PosVec3()
     wp_2 = PosVec3()
     new_wp = PosVec3()
     obstacle_pos = PosVec3()
-    ax = plt.axes(projection = '3d')
+    # ax = Axes3D(plt.figure())
+    # ax = plt.axes(projection = '3d')
+    print('plotting started')
+    ax = plt.figure().add_subplot(projection='3d')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
     ax.set_xlim([-50,50])
     ax.set_ylim([-50,50])
     ax.set_zlim([-50,50])
-    # obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
+    obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
     # obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
     x = 1
     z = len(way_points)
