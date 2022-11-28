@@ -213,7 +213,6 @@ def combine_obstacles(obstacles: list):
             sphere.append(radius)
             del obstacles[x + 1]
             del obstacles[x]
-            print(x)
             obstacles.insert(x - 1, sphere)
         else: 
             x += 1
@@ -298,10 +297,6 @@ def cuboid_data(center, size):
     return x, y, z
 
 def run_plot(way_points, obstacles, show_plot):
-    ax = plt.figure().add_subplot(projection='3d')
-    plt.show()
-
-def rund_plot(way_points, obstacles, show_plot):
     wp_1 = PosVec3()
     wp_2 = PosVec3()
     new_wp = PosVec3()
@@ -316,7 +311,7 @@ def rund_plot(way_points, obstacles, show_plot):
     ax.set_xlim([-50,50])
     ax.set_ylim([-50,50])
     ax.set_zlim([-50,50])
-    obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
+    # obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
     # obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
     x = 1
     z = len(way_points)
@@ -334,7 +329,6 @@ def rund_plot(way_points, obstacles, show_plot):
     height = 7.5 * 2
     X, Y, Z = cuboid_data(center, (length, width, height))
     ax.plot_surface(np.array(X), np.array(Y), np.array(Z), color='b', rstride=1, cstride=1, alpha=0.1)
-    print(obstacles)
     try:
         while True:
             obstacles.remove(0)

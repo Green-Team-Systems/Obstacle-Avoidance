@@ -311,8 +311,6 @@ class ClearPathObstacleAvoidance:
         y1 = math.sqrt(math.pow(radius, 2) - math.pow(x1 - edgepoint[0], 2)) + edgepoint[1]
         y2 = math.sqrt(math.pow(radius, 2) - math.pow(x2 - edgepoint[0], 2)) + edgepoint[1]
         
-          
-
     
     def get_vector(self, pos, waypt):
         vec = [waypt[0] - pos[0], waypt[1] - pos[1], waypt[2] - pos[2]]
@@ -347,8 +345,7 @@ class ClearPathObstacleAvoidance:
             overall_point_list = self.scan()
             for x in overall_point_list:
                 x.append(1)
-            run_plot(waypoint, overall_point_list, False)
-            print(waypoint)
+            run_plot(waypoint, overall_point_list, True)
             if(len(waypoint) != previous_waypoint_len):
                 self.client.simPause(True)
                 run_plot(waypoint, overall_point_list, True)
