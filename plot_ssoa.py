@@ -194,10 +194,10 @@ def combine_spheres(obstacles, merge):
     x = 0
     removed = 0
     merge.sort()
-    print(merge)
+    #print(merge)
     while x < len(merge) - 1:
         #print(x)
-        index_1 = merge[0] - removed
+        index_1 = merge[0]
         index_2 = merge[x + 1] - removed
         #print("I: ", index_1)
         #print("Index: ", index_2)
@@ -239,8 +239,8 @@ def combine_obstacles(obstacles):
         #print(obstacles_location[:(x + 1)])
         ind = tree.query_radius(obstacles_location[:(x + 1)], r = obstacles_radius[x])
         combine_spheres(obstacles, ind[0])
-        print(len(ind[0]))
-        print(x)
+        #print(len(ind[0]))
+        #print(x)
         if(len(ind[0]) == 1):
             x += 1
         if(x == len(obstacles)):
@@ -337,9 +337,9 @@ def run_plot(way_points, obstacles, show_plot):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_xlim([-10,10])
-    ax.set_ylim([-10,10])
-    ax.set_zlim([-10,10])
+    ax.set_xlim([-50,50])
+    ax.set_ylim([-50,50])
+    ax.set_zlim([-50,50])
     # obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1], [7, 7, 7, 1]]
     # obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
     x = 1
@@ -356,7 +356,7 @@ def run_plot(way_points, obstacles, show_plot):
     length = 20 * 2
     width = 20 * 2
     height = 7.5 * 2
-    X, Y, Z = cuboid_data(center, (length, width, height))
+    #X, Y, Z = cuboid_data(center, (length, width, height))
     #ax.plot_surface(np.array(X), np.array(Y), np.array(Z), color='b', rstride=1, cstride=1, alpha=0.1)
     try:
         while True:
@@ -381,23 +381,25 @@ def run_plot(way_points, obstacles, show_plot):
                 cube_point = closest(way_points[x - 1], obstacle_pos, radius)
                 theta = rotation_angle(obstacles[y][0:2], way_points[x - 1][0:2], way_points[x][0:2], radius)
                 cube_points = rotate_cube(ax, obstacle_pos, radius, theta)
-                plot_cube(ax, obstacle_pos, radius, theta)
+                #plot_cube(ax, obstacle_pos, radius, theta)
                 point = get_new_waypoint(ax, wp_1, wp_2, obstacle_pos, cube_points, radius)
                 new_wp.X = point[0]
                 new_wp.Y = point[1]
                 new_wp.Z = point[2]
-                plot_line(ax, wp_1, wp_2, 'r')
-                plot_new_point(ax, new_wp)
-                plot_line_new(ax, wp_1, wp_2, new_wp)
+                #plot_line(ax, wp_1, wp_2, 'r')
+                #plot_new_point(ax, new_wp)
+                #plot_line_new(ax, wp_1, wp_2, new_wp)
                 way_points.insert(x, point.tolist())
                 z += 1
                 already_intersect = True
             elif already_intersect == True:
-                plot_line(ax, wp_1, wp_2, 'r')
+                #plot_line(ax, wp_1, wp_2, 'r')
+                pass
             else:
-                plot_line(ax, wp_1, wp_2, 'b')
+                #plot_line(ax, wp_1, wp_2, 'b')
+                pass
             
-            plot_sphere(ax, obstacle_pos, radius, "lightblue")
+            #plot_sphere(ax, obstacle_pos, radius, "lightblue")
         x+=1
     if(show_plot == True):
         plt.show()

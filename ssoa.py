@@ -345,11 +345,11 @@ class ClearPathObstacleAvoidance:
             overall_point_list = self.scan()
             for x in overall_point_list:
                 x.append(1)
-            run_plot(waypoint, overall_point_list, True)
+            run_plot(waypoint, overall_point_list, False)
             if(len(waypoint) != previous_waypoint_len):
-                self.client.simPause(True)
-                run_plot(waypoint, overall_point_list, True)
-                self.client.simPause(False)
+                #self.client.simPause(True)
+                run_plot(waypoint, overall_point_list, False)
+                #self.client.simPause(False)
             state = self.client.getMultirotorState()
             current_pos = position_to_list(state.kinematics_estimated.position)
             dist_to_target = ned_position_difference(current_pos, new_waypoint)
