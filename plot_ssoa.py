@@ -8,10 +8,10 @@ from matplotlib import projections
 import matplotlib.pyplot as plt
 import numpy as np
 import math as m
+from sklearn.neighbors import KDTree
 from numpy import array, sin, cos
 from itertools import product, combinations
 
-import numpy
 from utils.data_classes import PosVec3, MovementCommand, VelVec3
 
 def pow(a):
@@ -190,13 +190,21 @@ def get_perp(wp1: PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: f
     
     return [x1,y1, x2, y2]
 
-def combine_obstacles(obstacles: list):
+def combine_spheres(obstacles, merge):
     x = 0
-    while x < len(obstacles) - 1:
-        pos_1 = np.array(obstacles[x][0:3])
-        radius_1 = obstacles[x][3]
-        pos_2 = np.array(obstacles[x + 1][0:3])
-        radius_2 = obstacles[x + 1][3]
+    removed = 0
+    merge.sort()
+    print(merge)
+    while x < len(merge) - 1:
+        #print(x)
+        index_1 = merge[0] - removed
+        index_2 = merge[x + 1] - removed
+        #print("I: ", index_1)
+        #print("Index: ", index_2)
+        pos_1 = np.array(obstacles[index_1][0:3])
+        radius_1 = obstacles[index_1][3]
+        pos_2 = np.array(obstacles[index_2][0:3])
+        radius_2 = obstacles[index_2][3]
         dist = np.linalg.norm(pos_2-pos_1)
         radius = 0
         if dist + radius_1 < radius_2:
@@ -207,15 +215,36 @@ def combine_obstacles(obstacles: list):
             center = pos_1
         elif dist <= radius_1 + radius_2:
             radius = (radius_1 + radius_2 + dist) / 2
+            #print("dist:", dist)
+            #print(pos_1)
+            #print(pos_2)
             center = pos_1 + (pos_2 - pos_1) * (radius - radius_1) / dist
         if radius != 0:
             sphere = center.tolist()
             sphere.append(radius)
-            del obstacles[x + 1]
-            del obstacles[x]
-            obstacles.insert(x - 1, sphere)
-        else: 
+            del obstacles[index_1]
+            del obstacles[index_2 - 1]
+            removed += 1
+            #print("sphere: ", sphere)
+            obstacles.insert(0, sphere)
+        x += 1
+
+def combine_obstacles(obstacles):
+    loop = True
+    x = 0
+    while loop == True:
+        obstacles_radius = [row[3] for row in obstacles]
+        obstacles_location = [row[0:3] for row in obstacles]
+        tree = KDTree(obstacles_location, leaf_size = 2)
+        #print(obstacles_location[:(x + 1)])
+        ind = tree.query_radius(obstacles_location[:(x + 1)], r = obstacles_radius[x])
+        combine_spheres(obstacles, ind[0])
+        print(len(ind[0]))
+        print(x)
+        if(len(ind[0]) == 1):
             x += 1
+        if(x == len(obstacles)):
+            loop = False
 
 def collision_possability(ax, wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
 
@@ -308,10 +337,10 @@ def run_plot(way_points, obstacles, show_plot):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_xlim([-50,50])
-    ax.set_ylim([-50,50])
-    ax.set_zlim([-50,50])
-    # obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1]]
+    ax.set_xlim([-10,10])
+    ax.set_ylim([-10,10])
+    ax.set_zlim([-10,10])
+    # obstacles = [[5, 5, 1, 1], [5, 5, 2, 1], [5, 5, 3, 1], [7, 7, 7, 1]]
     # obstacles = [[9, 9, 9, 1], [5, 5, 5, 1], [6, 6, 5, 1], [7, 7, 5, 1], [3, 10, 3, 1]]
     x = 1
     z = len(way_points)
@@ -328,7 +357,7 @@ def run_plot(way_points, obstacles, show_plot):
     width = 20 * 2
     height = 7.5 * 2
     X, Y, Z = cuboid_data(center, (length, width, height))
-    ax.plot_surface(np.array(X), np.array(Y), np.array(Z), color='b', rstride=1, cstride=1, alpha=0.1)
+    #ax.plot_surface(np.array(X), np.array(Y), np.array(Z), color='b', rstride=1, cstride=1, alpha=0.1)
     try:
         while True:
             obstacles.remove(0)
@@ -373,3 +402,7 @@ def run_plot(way_points, obstacles, show_plot):
     if(show_plot == True):
         plt.show()
         plt.close()
+
+# waypoint = [[5,0,0], [7,0,0]]
+# obstacles = []
+# run_plot(waypoint, obstacles, True)
