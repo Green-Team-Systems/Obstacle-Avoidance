@@ -191,6 +191,21 @@ def get_perp(wp1: PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, radius_saftey: f
     return [x1,y1, x2, y2]
 
 def combine_spheres(obstacles, merge):
+    """
+    Given the data from KD Tree combines all of the spheres in a certain
+    radius into one bigger sphere
+
+    ============= ================================================
+    Argument      Description
+    ============= ================================================
+    obstacles     A list of data that contains the information that
+                  was provided by LIDAR. Formatted as a 2d list 
+                  with [[x,y,z,radius]....]
+
+    merge         The indexes of the elements inside of obstacles that
+                  are in the same radius
+
+    """
     x = 0
     removed = 0
     merge.sort()
@@ -230,6 +245,18 @@ def combine_spheres(obstacles, merge):
         x += 1
 
 def combine_obstacles(obstacles):
+    """
+    method to combine all the obstacles into larger spheres to make 
+    calculations faster and easier
+
+    ============= ================================================
+    Argument      Description
+    ============= ================================================
+    obstacles     A list of data that contains the information that
+                  was provided by LIDAR. Formatted as a 2d list 
+                  with [[x,y,z,radius]....]
+
+    """
     loop = True
     x = 0
     while loop == True:
@@ -247,6 +274,19 @@ def combine_obstacles(obstacles):
             loop = False
 
 def collision_possability(ax, wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
+    """
+    Determines if the current trajectory of the drone is on path to hit the object
+
+    ============= ================================================
+    Argument      Description
+    ============= ================================================
+    wp1, wp2      Position vectors of the current position and ending waypoint
+
+    obstacles_pos Position of obstacle
+
+    radius_saftey The radius of the sphere that encloses the obstacle
+
+    """
 
     a = pow(wp_2.X  - wp_1.X) + pow(wp_2.Y  - wp_1.Y) + pow(wp_2.Z  - wp_1.Z)
     b = 2 * ((wp_2.X  - wp_1.X) * (wp_1.X  - obstacle_pos.X) + (wp_2.Y  - wp_1.Y) * (wp_1.Y  - obstacle_pos.Y) + (wp_2.Z  - wp_1.Z) * (wp_1.Z  - obstacle_pos.Z))
@@ -262,6 +302,21 @@ def collision_possability(ax, wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec
         return True
 
 def get_new_waypoint(ax, wp1:PosVec3, wp2: PosVec3, obstacle_pos: PosVec3, cube_vertices: list, radius_saftey: float):
+    """
+    Gets New Waypoint if it detects that the current path will intersect an object
+
+    ============= ================================================
+    Argument      Description
+    ============= ================================================
+    wp1, wp2      Position vectors of the current position and ending waypoint
+
+    obstacles_pos Position of obstacle
+
+    cube_vertices Different points of the bounding cube around the sphere
+
+    radius_saftey The radius of the sphere that encloses the obstacle
+
+    """
     cube_pos = PosVec3
     potential_wp = []
     min = m.inf
@@ -326,6 +381,20 @@ def cuboid_data(center, size):
     return x, y, z
 
 def run_plot(way_points, obstacles, show_plot):
+    """
+    Runs the calculations for finding points around obstacles and displays
+    them using matplotlib
+
+    ============= ================================================
+    Argument      Description
+    ============= ================================================
+    way_points    list of points created during trajectory generation
+
+    obstacles     lidar data point cloud
+    
+    show_plot     boolean that allows for plotting
+
+    """
     wp_1 = PosVec3()
     wp_2 = PosVec3()
     new_wp = PosVec3()

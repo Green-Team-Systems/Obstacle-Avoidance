@@ -329,7 +329,7 @@ class ClearPathObstacleAvoidance:
         starting_pos = position_to_list(state.kinematics_estimated.position)
         #self.client.moveToPositionAsync(0, 0, -1, 5).join()
         
-        waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[70, 0, 5]]
+        waypoint = [[starting_pos.X,starting_pos.Y,starting_pos.Z],[70, 0, 5]] # a rudimentary trajectory
         # waypoint = [[5,0,0], [7,0,0]]
         #obstacle dimenesions are 40x40x10
         new_command = 0
@@ -341,20 +341,20 @@ class ClearPathObstacleAvoidance:
         dist_treshold = 2.0
         i = 0
         previous_waypoint_len = len(waypoint)
-        while current_pos.X < 70:
+        while current_pos.X < 70: #reason for it to be less then < 70 is that this is the ending point of the trajectory generation
             overall_point_list = self.scan()
             for x in overall_point_list:
-                x.append(1)
-            run_plot(waypoint, overall_point_list, False)
-            if(len(waypoint) != previous_waypoint_len):
+                x.append(1) #reason for this is to add the safety radius to the list of positions 
+            run_plot(waypoint, overall_point_list, True)
+            if(len(waypoint) != previous_waypoint_len): #ngl all of this is very shitly done it works but can be made better
                 #self.client.simPause(True)
-                run_plot(waypoint, overall_point_list, False)
+                run_plot(waypoint, overall_point_list, True) # the true suggest that plots will displayed when running the code
                 #self.client.simPause(False)
             state = self.client.getMultirotorState()
             current_pos = position_to_list(state.kinematics_estimated.position)
             dist_to_target = ned_position_difference(current_pos, new_waypoint)
-            if dist_to_target < dist_treshold:
-                i = i + 1
+            if dist_to_target < dist_treshold: # a very rudimentary way of iterating through the trajectory
+                i = i + 1 
             print(i)
             new_waypoint.X = waypoint[i][0]
             new_waypoint.Y = -waypoint[i][1]
@@ -364,6 +364,7 @@ class ClearPathObstacleAvoidance:
             new_waypoint,
             current_pos, 
             startTime
+            
             )
             heading = np.arctan2(new_waypoint.Y,new_waypoint.X)
             heading = m.degrees(heading)
