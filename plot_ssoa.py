@@ -11,7 +11,7 @@ import math as m
 from sklearn.neighbors import KDTree
 from numpy import array, sin, cos
 from itertools import product, combinations
-
+import time
 from utils.data_classes import PosVec3, MovementCommand, VelVec3
 
 def pow(a):
@@ -209,8 +209,10 @@ def combine_spheres(obstacles, merge):
     x = 0
     removed = 0
     merge.sort()
+    combines = 0
     #print(merge)
     while x < len(merge) - 1:
+        combines = combines + 1
         #print(x)
         index_1 = merge[0]
         index_2 = merge[x + 1] - removed
@@ -243,6 +245,7 @@ def combine_spheres(obstacles, merge):
             #print("sphere: ", sphere)
             obstacles.insert(0, sphere)
         x += 1
+    return combines
 
 def combine_obstacles(obstacles):
     """
@@ -259,19 +262,32 @@ def combine_obstacles(obstacles):
     """
     loop = True
     x = 0
+    start = time.process_time()
+    combine = 0 
+    sphereCombines = 0
     while loop == True:
         obstacles_radius = [row[3] for row in obstacles]
         obstacles_location = [row[0:3] for row in obstacles]
         tree = KDTree(obstacles_location, leaf_size = 2)
         #print(obstacles_location[:(x + 1)])
         ind = tree.query_radius(obstacles_location[:(x + 1)], r = obstacles_radius[x])
-        combine_spheres(obstacles, ind[0])
+        combines = combine_spheres(obstacles, ind[0])
+        sphereCombines = combines + sphereCombines
+        combine = combine + 1
         #print(len(ind[0]))
         #print(x)
         if(len(ind[0]) == 1):
             x += 1
         if(x == len(obstacles)):
             loop = False
+        if(combines == 0): 
+            loop = False
+
+    end = time.process_time() - start
+    print("Time: ", end)
+    print("Combine: ", combine)
+    print("Combines: ", combines)
+    print("Sphere combines: ", sphereCombines)
 
 def collision_possability(ax, wp_1: PosVec3, wp_2: PosVec3, obstacle_pos: PosVec3, radius_saftey: float):
     """
