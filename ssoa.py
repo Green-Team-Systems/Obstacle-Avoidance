@@ -346,6 +346,9 @@ class ClearPathObstacleAvoidance:
             for x in overall_point_list:
                 x.append(1) #reason for this is to add the safety radius to the list of positions 
             run_plot(waypoint, overall_point_list, True)
+            self.client.simPause(True)
+            time.sleep(10)
+            self.client.simPause(False)
             if(len(waypoint) != previous_waypoint_len): #ngl all of this is very shitly done it works but can be made better
                 #self.client.simPause(True)
                 run_plot(waypoint, overall_point_list, True) # the true suggest that plots will displayed when running the code
