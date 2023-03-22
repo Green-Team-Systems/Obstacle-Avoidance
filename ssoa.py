@@ -379,14 +379,16 @@ class ClearPathObstacleAvoidance:
             startTime = datetime.utcnow()
             previous_waypoint_len = len(waypoint)
             print(current_pos)
-            logging.debug("Overall point lits: ".join(map(str, overall_point_list)))
+            logger.debug("Overall point lists: ".join(map(str, overall_point_list)))
         
 if __name__ == "__main__":
     
     print('Main accessed')
 
-    logging.basicConfig(filename='ssoa.log', filemode='w', level=logging.DEBUG)
-
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(filename='logfile.log', filemode='w')
+    logger.setLevel(logging.DEBUG)
+    
     ssoa = ClearPathObstacleAvoidance()
     
     try:
