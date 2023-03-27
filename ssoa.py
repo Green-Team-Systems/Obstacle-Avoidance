@@ -346,13 +346,13 @@ class ClearPathObstacleAvoidance:
             overall_point_list = self.scan()
             for x in overall_point_list:
                 x.append(1) #reason for this is to add the safety radius to the list of positions 
-            run_plot(waypoint, overall_point_list, True)
-            self.client.simPause(True)
-            time.sleep(10)
-            self.client.simPause(False)
+            run_plot(waypoint, overall_point_list, True, self)
+            #self.client.simPause(True)
+            #time.sleep(10)
+            #self.client.simPause(False)
             if(len(waypoint) != previous_waypoint_len): #ngl all of this is very shitly done it works but can be made better
                 #self.client.simPause(True)
-                run_plot(waypoint, overall_point_list, True) # the true suggest that plots will displayed when running the code
+                run_plot(waypoint, overall_point_list, True, self) # the true suggest that plots will displayed when running the code
                 #self.client.simPause(False)
             state = self.client.getMultirotorState()
             current_pos = position_to_list(state.kinematics_estimated.position)
