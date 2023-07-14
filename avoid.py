@@ -1,117 +1,207 @@
 import airsim
-
 import sys
 import math
 import time
 import argparse
 import pprint
-import numpy
 
-# TODO: 
-# Create different responses based on LiDar data returned: yaw for trees,
-# vertical for walls, sloped for hills/ terrain
-# Clean up everything in the loop
 
-class LidarTest:
-
+class Drone_Obstacle_Avoidance:
     def __init__(self):
-
-        # connect to the AirSim simulator
+        # Connect to the AirSim simulator
         self.client = airsim.MultirotorClient()
-        self.starting_pos = self.client.getMultirotorState().kinematics_estimated.position
+        self.starting_pos = (
+            self.client.getMultirotorState().kinematics_estimated.position
+        )
         self.client.confirmConnection()
         self.client.enableApiControl(True)
-    
-    
+        self.timer = 0
+
     def parse_liadar_date(self, lidarData):
-        if (len(lidarData) < 3):
-                print("\tNo points received from Lidar data")
-            # Intended to Unrotate after a rotation was completed to avoid collision.
-            # Currently it rotates to a static Yaw value and will need to be adjusted for relative values.
+        if len(lidarData) < 3:
+            print("\tNo points received from Lidar data")
+
         else:
-                # Divides the lidarData into 3 seperate variables for x, y and z
-                y_points_last = 0
-                length = len(lidarData)
-                overall_point_list = list()
-                next_row = list()
-                for i in range(0, length, 3):
-                    xyz = lidarData[i:i+3]
-                    if (xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(y_points_last)):
-                        overall_point_list.append(next_row)
-                        next_row = list()
-                    next_row.append(xyz)
-                    y_points_last = xyz[1]
+            # Divides the lidarData into 3 seperate variables for x, y and z
+            y_points_last = 0
+            length = len(lidarData)
+            overall_point_list = list()
+            next_row = list()
+            for i in range(0, length, 3):
+                xyz = lidarData[i : i + 3]
+                if xyz[1] != math.fabs(xyz[1]) and y_points_last == math.fabs(
+                    y_points_last
+                ):
+                    overall_point_list.append(next_row)
+                    next_row = list()
+                next_row.append(xyz)
+                y_points_last = xyz[1]
         return overall_point_list
-    
-    def moveForward(self):
-        self.client.moveByVelocityAsync(6, 0, 0, math.inf) 
-    
-    def moveRight(self):
-        self.client.moveByVelocityAsync(0, 2, 0, math.inf) 
 
-    def simple_right(self, lidarData):
-    # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
-        #state_data = self.client.getMultirotorState()
-        overall_point_list = self.parse_liadar_date(lidarData)
-        top_level = overall_point_list[1]
-        x_points = []
-        min = 1000
+    def move_forward(self):
+        self.client.moveByVelocityAsync(2, 0, 0, math.inf)
 
-        for i in range(len(top_level)):
-            x_point  = top_level[i][0]
-            y_point = top_level[i][1]
+    def move_right(self):
+        self.client.moveByVelocityAsync(0, 2, 0, math.inf)
 
-            if (y_point > -1.0 and y_point < 1.0):
-                x_points.append(x_point)
-                if min > x_point:
-                    min = x_point
-        
-        if min < 10:
-            self.moveRight()
-            # return [0, 1, 0] for later use with trajectory planning 
+    def move_up(self):
+        self.client.moveByVelocityAsync(0, 0, -5, math.inf)
+
+    def file_debug(self, point_cloud, new_point_cloud, reduced_point_cloud):
+        file = open("lidardatavehicle.txt", "a")
+
+        file.write("\nLidar Data:\n")
+        for x in point_cloud:
+            for i in x:
+                file.write(str(i))
+            file.write("\n")
+
+        height = self.client.getDistanceSensorData()
+        drone_height = height.distance
+        file.write("\nDrone Height: \n")
+        file.write(str(drone_height))
+        file.write("\n")
+
+        file.write("\nUpdated Lidar Data:\n")
+        for x in new_point_cloud:
+            for i in x:
+                file.write(str(i))
+            file.write("\n")
+
+        file.write("\nReduced Lidar Data:\n")
+        for x in reduced_point_cloud:
+            for i in x:
+                file.write(str(i))
+            file.write("\n")
+
+    def slope_calculation(self, point_cloud, drone_velocity):
+        if len(point_cloud) < 2:
+            return 0, 0, 0
+
+        try:
+            midpoint_top_level = int(len(point_cloud[1]) / 2)
+            x2_distance = point_cloud[1][midpoint_top_level][0]
+            z2_distance = -point_cloud[1][midpoint_top_level][2]
+            bottom_level_point = len(point_cloud) - 1
+            midpoint_bottom_level = int(len(point_cloud[bottom_level_point]) / 2)
+            x1_distance = point_cloud[bottom_level_point][midpoint_bottom_level][0]
+            z1_distance = -point_cloud[bottom_level_point][midpoint_bottom_level][2]
+
+            x_distance = math.fabs(x2_distance - x1_distance)
+            z_distance = math.fabs(z2_distance - z1_distance)
+
+            # Given the distances, do rise over run
+            slope = math.atan2(z_distance, x_distance)  # Radians
+            slope = math.degrees(slope)
+            self.previous_slope = slope
+
+            hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2))
+
+            z_velocity = z_distance / hypo
+            x_velocity = x_distance / hypo
+            z_velocity = z_velocity * drone_velocity
+            x_velocity = x_velocity * drone_velocity
+
+            return slope, x_velocity, z_velocity
+
+        except Exception:
+            return 0, 0, 0
+
+    def remove_ground_points(self, point_cloud, drone_height):
+        bottom_level = len(point_cloud) - 1
+        drone_tolernace_high = drone_height + 0.4
+        drone_tolernace_low = drone_height - 2
+        for x in range(bottom_level, 0, -1):
+            z_point = point_cloud[x][0][2]
+            if z_point >= drone_tolernace_low and z_point <= drone_tolernace_high:
+                del point_cloud[x]
+        return point_cloud
+
+    def reduce_window_size(self, point_cloud, min_window, max_window):
+        row = []
+        point_cloud_reduced = []
+        for _ in point_cloud:
+            for x in _:
+                y_point = x[1]
+                if y_point > min_window and y_point < max_window:
+                    row.append(x)
+            point_cloud_reduced.append(row)
+
+        return point_cloud_reduced
+
+    def object_detection(self, point_cloud, threshold_distance):
+        for _ in point_cloud:
+            for i in _:
+                x_point = i[0]
+                if x_point <= threshold_distance:
+                    return True
+
+        return False
+
+    def obstacle_avoidance(
+        self,
+        point_cloud,
+        drone_height,
+        min_incline,
+        max_incline,
+        drone_velocity,
+        min_window,
+        max_window,
+        threshold_distance,
+        threshold_timer,
+    ):
+        # Calculate the slope and potential new x and z velocity
+        slope, x_velocity, z_velocity = self.slope_calculation(
+            point_cloud, drone_velocity
+        )
+
+        # If slope is in between the range move by the new velocity
+        if slope > min_incline and slope <= max_incline:
+            self.client.moveByVelocityAsync(x_velocity, 0, -z_velocity, math.inf)
+
         else:
-            self.moveForward()
-            # return [1, 0, 0]
-    
-    def slopeCalculation(self, lidarData, droneVelocity):
-    # Depending on the range of the Lidar sensor (in the settings.json) no points will be recieved if the points distance exceeds the range.
-        overall_point_list = self.parse_liadar_date(lidarData) 
-        midpoint_top_level = int(len(overall_point_list[1]) / 2)
-        x2_distance = overall_point_list[1][midpoint_top_level][0]
-        z2_distance = -overall_point_list[1][midpoint_top_level][2]
+            # Remove Ground Points from point cloud
+            new_point_cloud = self.remove_ground_points(point_cloud, drone_height)
 
-        bottom_level_point = len(overall_point_list) - 1
-        midpoint_bottom_level = int(len(overall_point_list[bottom_level_point]) / 2)
-        x1_distance = overall_point_list[bottom_level_point][midpoint_bottom_level][0]
-        z1_distance = -overall_point_list[bottom_level_point][midpoint_bottom_level][2]
+            # Reduce the new point cloud to a certain window size
+            reduced_point_cloud = self.reduce_window_size(
+                new_point_cloud, min_window, max_window
+            )
 
-        x_distance = math.fabs(x2_distance - x1_distance)
-        z_distance = math.fabs(z2_distance - z1_distance)
-        hypo = math.sqrt(math.pow(x_distance, 2) + math.pow(z_distance, 2)) 
-        
-        zVelocity = (z_distance / hypo)
-        xVelocity = (x_distance / hypo)
-        zVelocity = zVelocity * droneVelocity
-        xVelocity = xVelocity * droneVelocity
+            # Use the new Point Cloud to see if an object is dected
+            object_detected = self.object_detection(
+                reduced_point_cloud, threshold_distance
+            )
 
-        return xVelocity, zVelocity
+            # If detected then run Right Hand Rule
+            if object_detected == True:
+                self.move_right()
+
+                # Start a timer or a distance counter have not determined which one is better over the other
+                self.timer = self.timer + 0.01
+
+                # If that timer / counter is exceded then send the drone straight up till object is not detected
+                if self.timer > threshold_timer:
+                    self.move_up()
+
+            # Else continue on
+            else:
+                self.timer = 0
+                # Move forward command for now during integrationg this might be removed
+                self.move_forward()
 
     def execute(self):
         """
-        This is where your function description.
+        Executes File
         """
-        # Allows for user input of location and velocity variables from terminal for quicker testing
-        # xCord = input("Enter the X-Coordinate of destination:")
-        # yCord = input("Enter the Y-Coordinate of destination:")
-        # zCord = input("Enter the Z-Coordinate of destination:")
-        # droneVelocity = input("Enter the speed at which to travel to the destination:")
 
-        # Initialization of variables and drone
-        xCord = 400 # meters
-        yCord = 0 # meters
-        zCord = 0 # meters
-        droneVelocity = 10 # meters / second
-        rotation = 0.0 # TODO Fifgure this out
+        min_incline = 10
+        max_incline = 25
+        min_window = -1.0
+        max_window = 1.0
+        threshold_distance = 7
+        threshold_time = 1
+        drone_velocity = 3
         print("arming the drone...")
         self.client.armDisarm(True)
 
@@ -119,50 +209,50 @@ class LidarTest:
         state = self.client.getMultirotorState()
         s = pprint.pformat(state)
         print(s)
-        airsim.wait_key('Press any key to takeoff')
+        airsim.wait_key("Press any key to takeoff")
         self.client.takeoffAsync().join()
-        state = self.client.getMultirotorState()    
-        
+        state = self.client.getMultirotorState()
+
         # Waitkey to begin Lidar drone testing.
-        airsim.wait_key('Press any key to get Lidar readings')
-
-        # Move the drone to the coordinates initialized above
-        # MovetoPosition will use Airsim Path Planning while moveByVelocity will not, i.e. moveByVelocity will be less jumpy.
-        # self.client.moveByVelocityAsync(xCord, yCord, zCord, droneVelocity)
-        #self.client.moveToPositionAsync(0, 5, 0, 5).join()
-
+        airsim.wait_key("Press any key to get Lidar readings")
         self.client.hoverAsync().join()
 
-        #time.sleep(10)
-        
-        # f = open('airsimdata.txt', 'w')
-
         while 1:
-
-            # lidar_data and data both need to be placed in a while loop along with function defination to make sure it works :) 
-            lidar_data = self.client.getLidarData()  
+            # Lidar_data and data both need to be placed in a while loop along with function defination to make sure it works :)
+            height = self.client.getDistanceSensorData()
+            drone_height = height.distance
+            lidar_data = self.client.getLidarData()
             data = lidar_data.point_cloud
+            point_cloud = self.parse_liadar_date(data)
 
-            self.simple_right(data) #takes the data as one parameter and 10 is drone speed user inputs
-            
-            #self.client.moveByVelocityAsync(10, 0, 0, 0.01) 
+            """ The below lines should be uncommented only if file debug is needed """
+            # new_point_cloud = self.remove_ground_points(point_cloud, drone_height)
+            # reduced_point_cloud = self.reduce_window_size(new_point_cloud, -1.0, 1.0)
+            # self.file_debug(point_cloud, new_point_cloud, reduced_point_cloud)
+
+            """ 
+            Apperantly there is an issue with linear velocity call in Airsim https://github.com/microsoft/AirSim/issues/2914
+            discuss potential fixes with Tyler. For now keep it constant
+            """
+            # drone_kinematics = self.client.getMultirotorState().kinematics_estimated
+            # drone_linear_velocity = drone_kinematics.linear_velocity
+
+            self.obstacle_avoidance(
+                point_cloud,
+                drone_height,
+                min_incline,
+                max_incline,
+                drone_velocity,
+                min_window,
+                max_window,
+                threshold_distance,
+                threshold_time,
+            )
+
             time.sleep(0.01)
 
-    def parse_lidarData(self, data):
-
-        # reshape array of floats to array of [X,Y,Z]
-        points = numpy.array(data.point_cloud, type=numpy.dtype('f4'))
-        points = numpy.reshape(points, (int(points.shape[0]/3), 3))
-       
-        return points
-
-    def write_lidarData_to_disk(self, points):
-        # TODO
-        print("not yet implemented")
-
     def stop(self):
-
-        airsim.wait_key('Press any key to reset to original state')
+        airsim.wait_key("Press any key to reset to original state")
 
         self.client.armDisarm(False)
         self.client.reset()
@@ -170,19 +260,22 @@ class LidarTest:
         self.client.enableApiControl(False)
         print("Done!\n")
 
+
 # main
 if __name__ == "__main__":
     args = sys.argv
     args.pop(0)
     arg_parser = argparse.ArgumentParser("Lidar.py makes drone fly and gets Lidar data")
 
-    arg_parser.add_argument('-save-to-disk', type=bool, help="save Lidar data to disk", default=False)
-  
-    args = arg_parser.parse_args(args)    
-    lidarTest = LidarTest()
+    arg_parser.add_argument(
+        "-save-to-disk", type=bool, help="save Lidar data to disk", default=False
+    )
+
+    args = arg_parser.parse_args(args)
+    drone_oa = Drone_Obstacle_Avoidance()
     try:
-        lidarTest.execute()
+        drone_oa.execute()
     except Exception as error:
         print(error)
     finally:
-        lidarTest.stop()
+        drone_oa.stop()
