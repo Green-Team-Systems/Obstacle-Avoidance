@@ -290,6 +290,7 @@ class PathPlanning(Process):
                     )
         # self.command_queue.join()
         while not killer.kill_now:
+            startTime = datetime.utcnow()
             # Check the queue for commands. Will block until message received.
             commands = self.receive_commands()
             # TODO Add a common inter-process message to either containerize
@@ -306,9 +307,7 @@ class PathPlanning(Process):
                     )
                     try:
                         assert isinstance(command, MovementCommand)
-                        
-                        if(self.check_for_new_command(command) == True):
-                            startTime = datetime.utcnow()
+
                         self.move_to_next_position(command, startTime)
                         # TODO Send back message on command completion
                         self.log.info(
@@ -350,13 +349,13 @@ class PathPlanning(Process):
                                 )
                             )
 
-    def calculate_velocities(self,target_pos, current_pos, command, startTime):
+    def calculate_velocities(self, target_pos, current_pos, startTime):
         kP = 0.3
         kI = 0.01
         kD = 0.01
         vMax = 20 
         jMax = 25
-        # print(target_pos.Z, current_pos.Z)
+        print(target_pos.X, current_pos.X)
         x_error = target_pos.X - current_pos.X
         y_error = target_pos.Y - current_pos.Y
         z_error = -1 * (target_pos.Z - current_pos.Z)
@@ -450,8 +449,7 @@ class PathPlanning(Process):
             )
             x_Vel, y_Vel, z_Vel = self.calculate_velocities(
                 command.position,
-                position,
-                command, 
+                position, 
                 startTime
             )
             if abs(z_Vel - self.last_velocities.vz) > 10 and self.last_command == "velocity":
@@ -467,6 +465,7 @@ class PathPlanning(Process):
             self.last_velocities.vx = x_Vel
             self.last_velocities.vy = y_Vel
             self.last_velocities.vz = z_Vel
+            self.previous_time = datetime.utcnow()
         elif command.move_by == "velocity":
             x_Vel = self.last_velocities.vx
             y_Vel = self.last_velocities.vy
